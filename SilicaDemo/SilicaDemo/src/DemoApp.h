@@ -4,6 +4,8 @@
 #include <dxgi1_6.h>
 #include <wrl/client.h>
 
+#include "Silica/include/SBox.h"
+
 class DemoApp {
 public:
 
@@ -14,6 +16,8 @@ public:
 
 	ID3D12Device* getDevice() const { return m_device.Get(); }
 	int getFrameIndex() const { return m_frameIndex; }
+
+	const Silica::WidgetPtr& getUIRoot() const { return m_uiRoot; }
 
 private:
 
@@ -36,6 +40,8 @@ private:
 	UINT m_rtvDescriptorSize;
 	int m_width;
 	int m_height;
+
+	Silica::WidgetPtr m_uiRoot;
 
 	void waitForGpu();
 	void moveToNextFrame();

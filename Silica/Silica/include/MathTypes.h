@@ -39,8 +39,13 @@ namespace Silica {
 		inline bool contains(const Vec2& point) const {
 			return point.x >= left && point.x <= right && point.y >= top && point.y <= bottom;
 		}
+	};
 
+	struct EventReply {
+		bool isHandled = false;
 
+		static EventReply handled() { return { true }; }
+		static EventReply unhandled() { return { false }; }
 	};
 
 }

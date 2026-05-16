@@ -3,6 +3,8 @@
 
 #include "DemoApp.h"
 
+#include "Silica/backends/SilicaImplWin32.h"
+
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam);
 
 int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine, int nCmdShow) {
@@ -70,6 +72,12 @@ int WINAPI WinMain(HINSTANCE hInstance, HINSTANCE hPrevInstance, LPSTR lpCmdLine
 
 LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) {
 	DemoApp* app = reinterpret_cast<DemoApp*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
+
+	if (app && app->getUIRoot()) {
+		if (Silica::ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam, app->getUIRoot())) {
+			return 1;
+		}
+	}
 
 	switch (uMsg) {
 		case WM_DESTROY: {

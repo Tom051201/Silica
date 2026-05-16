@@ -5,6 +5,10 @@
 #include "d3d12/d3dx12/d3dx12.h"
 
 #include "Silica/backends/SilicaImplDX12.h"
+#include "Silica/backends/SilicaImplWin32.h"
+#include "Silica/include/Renderer.h"
+
+#include "Silica/include/SButton.h"
 
 inline void ThrowIfFailed(HRESULT hr) {
 	if (FAILED(hr)) throw std::runtime_error("DX12 Error");
@@ -88,9 +92,27 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 
 	// -- Init Silica Backend --
 	Silica::ImplDX12_init(m_device.Get(), s_frameCount, DXGI_FORMAT_R8G8B8A8_UNORM);
+	Silica::ImplWin32_init(hwnd);
+
+	// -- Build UI Tree --
+	m_uiRoot = Silica::MakeWidget<Silica::SBox>({
+		.padding = { 50.0f, 50.0f },
+		.backgroundColor = 0xFF222222,
+		.child = Silica::MakeWidget<Silica::SButton>({
+			.padding = { 20.0f, 20.0f },
+			.color = 0xFFAA0000,   // Blue (ABGR: A=FF, B=AA, G=00, R=00)
+			.hoverColor = 0xFFFF0000,    // Lighter Blue
+			.pressedColor = 0xFF550000,  // Dark Blue
+			.onClick = []() {
+				OutputDebugStringA("SButton was formally clicked!\n");
+				return Silica::EventReply::handled();
+			}
+		})
+	});
 
 	return true;
 }
+
 void DemoApp::render() {
 	// -- Reset Command Allocator and List --
 	ThrowIfFailed(m_commandAllocators[m_frameIndex]->Reset());
@@ -113,28 +135,12 @@ void DemoApp::render() {
 	m_commandList->RSSetViewports(1, &viewport);
 	m_commandList->RSSetScissorRects(1, &scissorRect);
 
-	// ==========================================
-	// 4. RENDER SILICA UI
-	// ==========================================
+	// -- Render UI --
 	Silica::ImplDX12_newFrame();
+	Silica::Renderer::render(m_uiRoot, (float)m_width, (float)m_height);
 
-	Silica::DrawList dummyList;
-	dummyList.vertices = {
-		{ { 50.0f,   50.0f}, {0,0}, 0xFF0000FF }, // Top Left 
-		{ {250.0f,   50.0f}, {1,0}, 0xFF00FF00 }, // Top Right 
-		{ {250.0f,  250.0f}, {1,1}, 0xFFFF0000 }, // Bottom Right 
-		{ { 50.0f,  250.0f}, {0,1}, 0xFF00FFFF }  // Bottom Left 
-	};
-	dummyList.indices = { 0, 1, 2, 0, 2, 3 };
-
-	Silica::DrawCommand dummyCmd;
-	dummyCmd.indexCount = 6;
-	dummyCmd.startIndex = 0;
-	dummyCmd.vertexOffset = 0;
-	dummyList.commands.push_back(dummyCmd);
-
-	// -- Submit to backend --
-	Silica::ImplDX12_renderDrawData(&dummyList, m_commandList.Get(), (float)m_width, (float)m_height);
+	const Silica::DrawList* drawData = Silica::Renderer::getDrawData();
+	Silica::ImplDX12_renderDrawData(drawData, m_commandList.Get(), (float)m_width, (float)m_height);
 
 	// -- Transition to Present and Execute --
 	barrier = CD3DX12_RESOURCE_BARRIER::Transition(m_renderTargets[m_frameIndex].Get(), D3D12_RESOURCE_STATE_RENDER_TARGET, D3D12_RESOURCE_STATE_PRESENT);
@@ -164,6 +170,7 @@ void DemoApp::cleanup() {
 	waitForGpu();
 
 	Silica::ImplDX12_shutdown();
+	Silica::ImplWin32_shutdown();
 
 	CloseHandle(m_fenceEvent);
 }

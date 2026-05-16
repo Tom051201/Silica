@@ -1,7 +1,7 @@
 project "SilicaDemo"
 	kind "WindowedApp"
 	language "C++"
-	cppdialect "C++17"
+	cppdialect "C++20"
 	staticruntime "on"
 
 	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
@@ -21,7 +21,8 @@ project "SilicaDemo"
 	links {
 		"Silica",
 		"d3d12.lib",
-		"dxgi.lib"
+		"dxgi.lib",
+		"d3dcompiler.lib"
 	}
 
 	filter "system:windows"
