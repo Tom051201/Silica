@@ -9,15 +9,19 @@ project "SilicaDemo"
 	
 	files {
 		"SilicaDemo/src/**.h",
-		"SilicaDemo/src/**.cpp"
+		"SilicaDemo/src/**.cpp",
+		"%{wks.location}/Silica/Silica/backends/**.h",
+		"%{wks.location}/Silica/Silica/backends/**.cpp"
 	}
 	
 	includedirs {
-		"Silica/include"
+		"%{wks.location}/Silica"
 	}
 
 	links {
-		"Silica"
+		"Silica",
+		"d3d12.lib",
+		"dxgi.lib"
 	}
 
 	filter "system:windows"

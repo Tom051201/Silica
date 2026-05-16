@@ -7,19 +7,17 @@ project "Silica"
 	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
 
-	pchheader "SilicaPCH.h"
-	pchsource "Silica/src/SilicaPCH.cpp"
-	
 	files {
 		"Silica/src/**.h",
-		"Silica/src/**.cpp"
+		"Silica/src/**.cpp",
+		"Silica/include/**.h"
 	}
 	
 	includedirs {
 		"Silica/include",
 		"Silica/src"
 	}
-	
+
 	libdirs {}
 	
 	filter "system:windows"
@@ -27,7 +25,7 @@ project "Silica"
 		defines {
 			"SILICA_PLATFORM_WINDOWS"
 		}
-	
+
 	filter "configurations:Debug"
 		defines {
 			"_DEBUG",
@@ -36,7 +34,7 @@ project "Silica"
 		}
 		runtime "Debug"
 		symbols "on"
-	
+
 	filter "configurations:Release"
 		defines {
 			"NDEBUG",

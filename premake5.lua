@@ -1,6 +1,6 @@
 workspace "SilicaWorkspace"
 	architecture "x64"
-	startproject "AxionStudio"
+	startproject "SilicaDemo"
 	configurations {
 		"Debug",
 		"Release",
