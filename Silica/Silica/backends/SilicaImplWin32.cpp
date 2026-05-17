@@ -3,6 +3,7 @@
 #include <windowsx.h>
 
 #include "../include/Renderer.h"
+#include "../include/SWidget.h"
 
 namespace Silica {
 
@@ -13,6 +14,26 @@ namespace Silica {
 	};
 
 	static BackendStateWin32 s_state;
+
+	namespace Platform {
+		void setMouseCapture(bool capture) {
+			if (capture) {
+				SetCapture(s_state.hwnd);
+			}
+			else {
+				ReleaseCapture();
+			}
+		}
+
+		void setCursor(Cursor cursor) {
+			if (cursor == Cursor::TextInput) {
+				::SetCursor(LoadCursor(NULL, IDC_IBEAM));
+			}
+			else {
+				::SetCursor(LoadCursor(NULL, IDC_ARROW));
+			}
+		}
+	}
 
 	bool ImplWin32_init(HWND hwnd) {
 		s_state.hwnd = hwnd;
@@ -51,15 +72,36 @@ namespace Silica {
 				float x = static_cast<float>(GET_X_LPARAM(lParam));
 				float y = static_cast<float>(GET_Y_LPARAM(lParam));
 
-				Silica::Renderer::processMouseClick(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y);
+				Renderer::processMouseClick(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y);
 				return true;
 			}
 			case WM_LBUTTONUP: {
 				float x = static_cast<float>(GET_X_LPARAM(lParam));
 				float y = static_cast<float>(GET_Y_LPARAM(lParam));
 
-				Silica::Renderer::processMouseUp(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y);
+				Renderer::processMouseUp(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y);
 				return true;
+			}
+			case WM_CHAR: {
+				if (SWidget::getFocusedWidget()) {
+					SWidget::getFocusedWidget()->onChar((char)wParam);
+				}
+				return 0;
+			}
+
+			case WM_KEYDOWN: {
+				if (SWidget::getFocusedWidget()) {
+					SWidget::getFocusedWidget()->onKeyDown((int)wParam);
+				}
+				return 0;
+			}
+			case WM_MOUSEWHEEL: {
+				float delta = static_cast<float>(GET_WHEEL_DELTA_WPARAM(wParam)) / WHEEL_DELTA;
+				POINT pt = { GET_X_LPARAM(lParam), GET_Y_LPARAM(lParam) };
+
+				ScreenToClient(hwnd, &pt);
+				Renderer::processMouseWheel(rootWidget, s_state.clientWidth, s_state.clientHeight, (float)pt.x, (float)pt.y, delta);
+				return 0;
 			}
 		}
 

@@ -5,19 +5,16 @@
 
 namespace Silica {
 
-	class SButton : public SWidget {
+	class SScissorBox : public SWidget {
 	public:
 
 		struct Args {
-			Vec2 padding = { 10.0f, 10.0f };
-			Color color = Color::transparent();
-			Color hoverColor = Color::transparent();
-			Color pressedColor = Color::transparent();
-			std::function<EventReply()> onClick = nullptr;
 			WidgetPtr child = nullptr;
 		};
 
-		void construct(const Args& args);
+		void construct(const Args& args) {
+			m_child = args.child;
+		}
 
 		void computeDesiredSize() override;
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
@@ -29,16 +26,7 @@ namespace Silica {
 
 	private:
 
-		Vec2 m_padding;
-		Color m_color;
-		Color m_hoverColor;
-		Color m_pressedColor;
-		std::function<EventReply()> m_onClick;
 		WidgetPtr m_child;
-
-		bool m_isPressed = false;
-
-		void addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const;
 
 	};
 

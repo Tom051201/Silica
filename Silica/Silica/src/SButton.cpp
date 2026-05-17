@@ -22,6 +22,8 @@ namespace Silica {
 	}
 
 	void SButton::arrangeChildren(const Geometry& allocatedGeometry) {
+		SWidget::arrangeChildren(allocatedGeometry);
+
 		if (m_child) {
 			Geometry childGeo;
 			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
@@ -33,9 +35,9 @@ namespace Silica {
 	}
 
 	void SButton::onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const {
-		uint32_t drawColor = m_isPressed ? m_pressedColor : (m_isHovered ? m_hoverColor : m_color);
+		Color drawColor = m_isPressed ? m_pressedColor : (m_isHovered ? m_hoverColor : m_color);
 
-		if ((drawColor >> 24) > 0) {
+		if (drawColor.a() > 0) {
 			addRectToDrawList(outDrawList, allotedGeometry, drawColor);
 		}
 
@@ -85,15 +87,20 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	void SButton::addRectToDrawList(DrawList& drawList, const Geometry& geo, uint32_t color) const {
+	void SButton::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
 		uint32_t startIndex = (uint32_t)drawList.vertices.size();
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0,0}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {1,0}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {1,1}, color });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0,1}, color });
+
+		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color }); // TL
+		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color }); // TR
+		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color }); // BR
+		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color }); // BL
+
 		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
 		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
+
+		if (drawList.commands.empty()) {
+			drawList.commands.push_back({ 0, 0, 0 });
+		}
 		drawList.commands.back().indexCount += 6;
 	}
 

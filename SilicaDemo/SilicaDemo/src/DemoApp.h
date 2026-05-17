@@ -5,6 +5,7 @@
 #include <wrl/client.h>
 
 #include "Silica/include/SBox.h"
+#include "Silica/include/FontAtlas.h"
 
 class DemoApp {
 public:
@@ -42,6 +43,7 @@ private:
 	int m_height;
 
 	Silica::WidgetPtr m_uiRoot;
+	Silica::FontAtlas m_font;
 
 	void waitForGpu();
 	void moveToNextFrame();

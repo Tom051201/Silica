@@ -5,16 +5,11 @@
 
 namespace Silica {
 
-	class SButton : public SWidget {
+	class SScrollBox : public SWidget {
 	public:
-
 		struct Args {
-			Vec2 padding = { 10.0f, 10.0f };
-			Color color = Color::transparent();
-			Color hoverColor = Color::transparent();
-			Color pressedColor = Color::transparent();
-			std::function<EventReply()> onClick = nullptr;
 			WidgetPtr child = nullptr;
+			float scrollSpeed = 40.0f;
 		};
 
 		void construct(const Args& args);
@@ -26,19 +21,20 @@ namespace Silica {
 		EventReply onMouseMove(const Geometry& allotedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonDown(const Geometry& allotedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonUp(const Geometry& allotedGeometry, const Vec2& mousePos) override;
+		EventReply onMouseWheel(const Geometry& allotedGeometry, const Vec2& mousePos, float scrollDelta) override;
 
 	private:
 
-		Vec2 m_padding;
-		Color m_color;
-		Color m_hoverColor;
-		Color m_pressedColor;
-		std::function<EventReply()> m_onClick;
 		WidgetPtr m_child;
+		float m_scrollOffset = 0.0f;
+		float m_scrollSpeed = 40.0f;
+		float m_maxScroll = 0.0f;
 
-		bool m_isPressed = false;
+		bool m_isDraggingThumb = false;
+		float m_dragClickOffsetY = 0.0f;
 
 		void addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const;
+		Rect getThumbRect(const Geometry& allotedGeometry) const;
 
 	};
 

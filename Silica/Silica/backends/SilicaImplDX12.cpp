@@ -29,6 +29,13 @@ namespace Silica {
 
 		uint32_t maxVertices = 10000;
 		uint32_t maxIndices = maxVertices * 3;
+
+		ComPtr<ID3D12DescriptorHeap> srvHeap;
+		ComPtr<ID3D12Resource> fontTexture;
+		ComPtr<ID3D12Resource> fontUploadHeap;
+
+		UINT srvDescriptorSize = 0;
+		uint32_t nextAllocatedTextureID = 0;
 	};
 
 	static BackendStateDX12 g_state;
@@ -73,12 +80,23 @@ namespace Silica {
 
 
 		// -- Create Root Signature --
-		CD3DX12_ROOT_PARAMETER rootParameters[1];
+		CD3DX12_DESCRIPTOR_RANGE srvRange;
+		srvRange.Init(D3D12_DESCRIPTOR_RANGE_TYPE_SRV, 1, 0); // t0
+		CD3DX12_ROOT_PARAMETER rootParameters[2];
 		rootParameters[0].InitAsConstants(16, 0, 0, D3D12_SHADER_VISIBILITY_VERTEX);
+		rootParameters[1].InitAsDescriptorTable(1, &srvRange, D3D12_SHADER_VISIBILITY_PIXEL);
+		CD3DX12_STATIC_SAMPLER_DESC sampler = {};
+		sampler.Filter = D3D12_FILTER_MIN_MAG_MIP_LINEAR;
+		sampler.AddressU = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		sampler.AddressV = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		sampler.AddressW = D3D12_TEXTURE_ADDRESS_MODE_CLAMP;
+		sampler.ShaderRegister = 0; // s0
 		D3D12_ROOT_SIGNATURE_DESC rootSigDesc = {};
 		rootSigDesc.NumParameters = _countof(rootParameters);
 		rootSigDesc.pParameters = rootParameters;
 		rootSigDesc.Flags = D3D12_ROOT_SIGNATURE_FLAG_ALLOW_INPUT_ASSEMBLER_INPUT_LAYOUT;
+		rootSigDesc.NumStaticSamplers = 1;
+		rootSigDesc.pStaticSamplers = &sampler;
 
 		ComPtr<ID3DBlob> signatureBlob;
 		ComPtr<ID3DBlob> errorBlob;
@@ -91,20 +109,27 @@ namespace Silica {
 			cbuffer RootConstants : register(b0) {
 				float4x4 ProjectionMatrix;
 			};
+
 			struct VS_INPUT {
 				float2 pos : POSITION;
 				float2 uv  : TEXCOORD0;
 				uint color : COLOR0;
 			};
+
+			Texture2D fontTex : register(t0);
+			SamplerState fontSampler : register(s0);
+
 			struct PS_INPUT {
-				float4 pos : SV_POSITION;
-				float4 col : COLOR0;
+				float4 position : SV_POSITION;
+				float2 uv : TEXCOORD;
+				float4 color : COLOR;
 			};
+
 			PS_INPUT VSMain(VS_INPUT input) {
 				PS_INPUT output;
-				output.pos = mul(ProjectionMatrix, float4(input.pos.xy, 0.0f, 1.0f));
-				
-				output.col = float4((input.color & 0xFF) / 255.0f,
+				output.position = mul(ProjectionMatrix, float4(input.pos.xy, 0.0f, 1.0f));
+				output.uv = input.uv;
+				output.color = float4((input.color & 0xFF) / 255.0f,
 									((input.color >> 8) & 0xFF) / 255.0f,
 									((input.color >> 16) & 0xFF) / 255.0f,
 									((input.color >> 24) & 0xFF) / 255.0f);
@@ -112,7 +137,12 @@ namespace Silica {
 			}
 
 			float4 PSMain(PS_INPUT input) : SV_Target {
-				return input.col;
+				float fontAlpha = fontTex.Sample(fontSampler, input.uv).r;
+
+				float4 finalColor = input.color;
+				finalColor.a *= fontAlpha; 
+
+				return finalColor;
 			}
 		)";
 
@@ -122,9 +152,9 @@ namespace Silica {
 
 		// -- Input Layout --
 		D3D12_INPUT_ELEMENT_DESC inputElementDescs[] = {
-			{ "POSITION", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, position), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "TEXCOORD", 0, DXGI_FORMAT_R32G32_FLOAT, 0, offsetof(Vertex, uv), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
-			{ "COLOR",    0, DXGI_FORMAT_R32_UINT,     0, offsetof(Vertex, color), D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA, 0 },
+			{ "POSITION",	0,	DXGI_FORMAT_R32G32_FLOAT,	0,	offsetof(Vertex, position),		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,		0 },
+			{ "TEXCOORD",	0,	DXGI_FORMAT_R32G32_FLOAT,	0,	offsetof(Vertex, uv),			D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,		0 },
+			{ "COLOR",		0,	DXGI_FORMAT_R32_UINT,		0,	offsetof(Vertex, color),		D3D12_INPUT_CLASSIFICATION_PER_VERTEX_DATA,		0 },
 		};
 
 
@@ -243,8 +273,27 @@ namespace Silica {
 		commandList->IASetIndexBuffer(&ibv);
 		commandList->IASetPrimitiveTopology(D3D_PRIMITIVE_TOPOLOGY_TRIANGLELIST);
 
+		ID3D12DescriptorHeap* descriptorHeaps[] = { g_state.srvHeap.Get() };
+		commandList->SetDescriptorHeaps(1, descriptorHeaps);
+
 		// -- Draw Commands --
 		for (const auto& cmd : drawData->commands) {
+			if (cmd.indexCount == 0) continue;
+
+			CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(
+				g_state.srvHeap->GetGPUDescriptorHandleForHeapStart(),
+				cmd.textureID,
+				g_state.srvDescriptorSize
+			);
+			commandList->SetGraphicsRootDescriptorTable(1, gpuHandle);
+
+			D3D12_RECT scissor;
+			scissor.left = static_cast<LONG>(cmd.clipRect.left);
+			scissor.top = static_cast<LONG>(cmd.clipRect.top);
+			scissor.right = static_cast<LONG>(cmd.clipRect.right);
+			scissor.bottom = static_cast<LONG>(cmd.clipRect.bottom);
+			commandList->RSSetScissorRects(1, &scissor);
+
 			commandList->DrawIndexedInstanced(
 				cmd.indexCount,
 				1,
@@ -253,6 +302,111 @@ namespace Silica {
 				0
 			);
 		}
+	}
+
+	void ImplDX12_uploadFontAtlas(ID3D12GraphicsCommandList* cmdList, const uint8_t* pixels, uint32_t width, uint32_t height) {
+		// -- Create SRV Descriptor Heap --
+		D3D12_DESCRIPTOR_HEAP_DESC srvHeapDesc = {};
+		srvHeapDesc.NumDescriptors = 1024;
+		srvHeapDesc.Type = D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV;
+		srvHeapDesc.Flags = D3D12_DESCRIPTOR_HEAP_FLAG_SHADER_VISIBLE;
+		g_state.device->CreateDescriptorHeap(&srvHeapDesc, IID_PPV_ARGS(&g_state.srvHeap));
+
+		g_state.srvDescriptorSize = g_state.device->GetDescriptorHandleIncrementSize(D3D12_DESCRIPTOR_HEAP_TYPE_CBV_SRV_UAV);
+		g_state.nextAllocatedTextureID = 1;
+
+		// -- Create the Texture Resource (R8_UNORM) --
+		CD3DX12_RESOURCE_DESC texDesc = CD3DX12_RESOURCE_DESC::Tex2D(DXGI_FORMAT_R8_UNORM, width, height, 1, 1);
+		CD3DX12_HEAP_PROPERTIES defaultHeap(D3D12_HEAP_TYPE_DEFAULT);
+		g_state.device->CreateCommittedResource(
+			&defaultHeap,
+			D3D12_HEAP_FLAG_NONE,
+			&texDesc,
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			nullptr,
+			IID_PPV_ARGS(&g_state.fontTexture)
+		);
+
+		// -- Create The Upload Heap --
+		const UINT uploadPitch = (width + D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u) & ~(D3D12_TEXTURE_DATA_PITCH_ALIGNMENT - 1u);
+		const UINT uploadSize = height * uploadPitch;
+		CD3DX12_HEAP_PROPERTIES uploadHeap(D3D12_HEAP_TYPE_UPLOAD);
+		CD3DX12_RESOURCE_DESC bufferDesc = CD3DX12_RESOURCE_DESC::Buffer(uploadSize);
+		g_state.device->CreateCommittedResource(
+			&uploadHeap,
+			D3D12_HEAP_FLAG_NONE,
+			&bufferDesc,
+			D3D12_RESOURCE_STATE_GENERIC_READ,
+			nullptr,
+			IID_PPV_ARGS(&g_state.fontUploadHeap)
+		);
+
+		// -- Copy CPU Data to Upload Heap --
+		void* mapped = nullptr;
+		g_state.fontUploadHeap->Map(0, nullptr, &mapped);
+		for (uint32_t y = 0; y < height; y++) {
+			memcpy((void*)((uintptr_t)mapped + y * uploadPitch), pixels + y * width, width);
+		}
+		g_state.fontUploadHeap->Unmap(0, nullptr);
+
+		// -- Copy Upload Heap to Texture --
+		D3D12_TEXTURE_COPY_LOCATION dst = {};
+		dst.pResource = g_state.fontTexture.Get();
+		dst.Type = D3D12_TEXTURE_COPY_TYPE_SUBRESOURCE_INDEX;
+		dst.SubresourceIndex = 0;
+
+		D3D12_PLACED_SUBRESOURCE_FOOTPRINT footprint = {};
+		footprint.Footprint.Format = DXGI_FORMAT_R8_UNORM;
+		footprint.Footprint.Width = width;
+		footprint.Footprint.Height = height;
+		footprint.Footprint.Depth = 1;
+		footprint.Footprint.RowPitch = uploadPitch;
+
+		D3D12_TEXTURE_COPY_LOCATION src = {};
+		src.pResource = g_state.fontUploadHeap.Get();
+		src.Type = D3D12_TEXTURE_COPY_TYPE_PLACED_FOOTPRINT;
+		src.PlacedFootprint = footprint;
+
+		cmdList->CopyTextureRegion(&dst, 0, 0, 0, &src, nullptr);
+
+		// -- Transition Texture to Shader Resource State --
+		CD3DX12_RESOURCE_BARRIER barrier = CD3DX12_RESOURCE_BARRIER::Transition(
+			g_state.fontTexture.Get(),
+			D3D12_RESOURCE_STATE_COPY_DEST,
+			D3D12_RESOURCE_STATE_PIXEL_SHADER_RESOURCE
+		);
+		cmdList->ResourceBarrier(1, &barrier);
+
+		// -- Create Shader Resource View (SRV) in the Descriptor Heap --
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = DXGI_FORMAT_R8_UNORM;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = 1;
+		g_state.device->CreateShaderResourceView(g_state.fontTexture.Get(), &srvDesc, g_state.srvHeap->GetCPUDescriptorHandleForHeapStart());
+	}
+
+	TextureID ImplDX12_registerTexture(ID3D12Resource* textureResource) {
+		if (!textureResource || !g_state.srvHeap) return 0;
+		if (g_state.nextAllocatedTextureID >= 1024) return 0;
+
+		TextureID newId = g_state.nextAllocatedTextureID++;
+
+		CD3DX12_CPU_DESCRIPTOR_HANDLE cpuHandle(
+			g_state.srvHeap->GetCPUDescriptorHandleForHeapStart(),
+			newId,
+			g_state.srvDescriptorSize
+		);
+
+		D3D12_SHADER_RESOURCE_VIEW_DESC srvDesc = {};
+		srvDesc.Format = DXGI_FORMAT_R8G8B8A8_UNORM;
+		srvDesc.ViewDimension = D3D12_SRV_DIMENSION_TEXTURE2D;
+		srvDesc.Shader4ComponentMapping = D3D12_DEFAULT_SHADER_4_COMPONENT_MAPPING;
+		srvDesc.Texture2D.MipLevels = 1;
+
+		g_state.device->CreateShaderResourceView(textureResource, &srvDesc, cpuHandle);
+
+		return newId;
 	}
 
 }

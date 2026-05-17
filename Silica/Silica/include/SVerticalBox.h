@@ -1,25 +1,19 @@
 #pragma once
 
-#include <cstdint>
-
 #include "SWidget.h"
-#include "Renderer.h"
-#include "MathTypes.h"
 
 namespace Silica {
 
-	class SBox : public SWidget {
+	class SVerticalBox : public SWidget {
 	public:
 
 		struct Args {
-			Vec2 padding = Vec2::zero();
-			Color backgroundColor = Color::transparent();
-			Color hoverColor = Color::transparent();
-			std::function<EventReply()> onClick = nullptr;
-			WidgetPtr child = nullptr;
+			std::vector<Slot> slots;
 		};
 
-		void construct(const Args& args);
+		void construct(const Args& args) {
+			m_slots = args.slots;
+		}
 
 		void computeDesiredSize() override;
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
@@ -32,13 +26,7 @@ namespace Silica {
 
 	private:
 
-		Vec2 m_padding;
-		Color m_backgroundColor;
-		Color m_hoverColor;
-		std::function<EventReply()> m_onClick;
-		WidgetPtr m_child;
-
-		void addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const;
+		std::vector<Slot> m_slots;
 
 	};
 
