@@ -1,6 +1,7 @@
 #pragma once
 
 #include <string>
+#include <optional>
 
 #include "SWidget.h"
 #include "FontAtlas.h"
@@ -12,7 +13,7 @@ namespace Silica {
 	public:
 		struct Args {
 			std::string text = "";
-			Color color = Color::white();
+			std::optional<Color> color;
 			FontAtlas* font = nullptr;
 		};
 
@@ -20,7 +21,7 @@ namespace Silica {
 
 		void computeDesiredSize() override;
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
-		void onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const override;
+		void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const override;
 
 	private:
 

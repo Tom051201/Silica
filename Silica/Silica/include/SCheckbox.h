@@ -1,22 +1,20 @@
 #pragma once
 
-#include <string>
+#include <functional>
 #include <optional>
 
 #include "SWidget.h"
-#include "FontAtlas.h"
 
 namespace Silica {
 
-	class SEditableText : public SWidget {
+	class SCheckBox : public SWidget {
 	public:
 
 		struct Args {
-			std::string hintText = "Type here...";
-			std::optional<Color> textColor;
+			bool initialCheck = false;
 			std::optional<Color> backgroundColor;
-			std::optional<Color> focusedColor;
-			FontAtlas* font = nullptr;
+			std::optional<Color> checkColor;
+			std::function<void(bool)> onCheckChanged = nullptr;
 		};
 
 		void construct(const Args& args);
@@ -26,18 +24,13 @@ namespace Silica {
 		void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const override;
 
 		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
-		EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
-		EventReply onChar(char c) override;
-		EventReply onKeyDown(int key) override;
 
 	private:
 
-		std::string m_text;
-		std::string m_hintText;
-		Color m_textColor;
+		bool m_isChecked = false;
 		Color m_backgroundColor;
-		Color m_focusedColor;
-		FontAtlas* m_font;
+		Color m_checkColor;
+		std::function<void(bool)> m_onCheckChanged;
 
 		void addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const;
 

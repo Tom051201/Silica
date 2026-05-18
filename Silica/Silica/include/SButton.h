@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "SWidget.h"
 #include "Renderer.h"
 
@@ -10,9 +12,9 @@ namespace Silica {
 
 		struct Args {
 			Vec2 padding = { 10.0f, 10.0f };
-			Color color = Color::transparent();
-			Color hoverColor = Color::transparent();
-			Color pressedColor = Color::transparent();
+			std::optional<Color> color;
+			std::optional<Color> hoverColor;
+			std::optional<Color> pressedColor;
 			std::function<EventReply()> onClick = nullptr;
 			WidgetPtr child = nullptr;
 		};
@@ -21,11 +23,11 @@ namespace Silica {
 
 		void computeDesiredSize() override;
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
-		void onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const override;
+		void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const override;
 
-		EventReply onMouseMove(const Geometry& allotedGeometry, const Vec2& mousePos) override;
-		EventReply onMouseButtonDown(const Geometry& allotedGeometry, const Vec2& mousePos) override;
-		EventReply onMouseButtonUp(const Geometry& allotedGeometry, const Vec2& mousePos) override;
+		EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
+		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
+		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 
 	private:
 

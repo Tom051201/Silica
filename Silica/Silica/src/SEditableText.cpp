@@ -3,14 +3,15 @@
 #include <chrono>
 
 #include "Renderer.h"
+#include "Theme.h"
 
 namespace Silica {
 
 	void SEditableText::construct(const Args& args) {
 		m_hintText = args.hintText;
-		m_textColor = args.textColor;
-		m_backgroundColor = args.backgroundColor;
-		m_focusedColor = args.focusedColor;
+		m_textColor = args.textColor.value_or(GetTheme().textMain);
+		m_backgroundColor = args.backgroundColor.value_or(GetTheme().buttonPressed);
+		m_focusedColor = args.focusedColor.value_or(GetTheme().buttonNormal);
 		m_font = args.font;
 	}
 
@@ -42,7 +43,7 @@ namespace Silica {
 
 		// -- Draw Text --
 		std::string textToDraw = m_text.empty() && !hasFocus ? m_hintText : m_text;
-		Color drawColor = m_text.empty() && !hasFocus ? Color(150, 150, 150) : m_textColor;
+		Color drawColor = m_text.empty() && !hasFocus ? GetTheme().textDim : m_textColor;
 
 		float cursorX = allocatedGeometry.position.x + 5.0f;
 		float baselineY = allocatedGeometry.position.y + 20.0f;
@@ -83,8 +84,8 @@ namespace Silica {
 		outDrawList.popClipRect();
 	}
 
-	EventReply SEditableText::onMouseButtonDown(const Geometry & allotedGeometry, const Vec2 & mousePos) {
-		if (allotedGeometry.contains(mousePos)) {
+	EventReply SEditableText::onMouseButtonDown(const Geometry & allocatedGeometry, const Vec2 & mousePos) {
+		if (allocatedGeometry.contains(mousePos)) {
 			SWidget::setFocusedWidget(this);
 			return EventReply::handled();
 		}

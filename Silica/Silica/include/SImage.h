@@ -1,5 +1,7 @@
 #pragma once
 
+#include <optional>
+
 #include "SWidget.h"
 #include "Renderer.h"
 
@@ -10,7 +12,7 @@ namespace Silica {
 
 		struct Args {
 			TextureID textureID = 0;
-			Color tint = Color::white();
+			std::optional<Color> tint;
 			Vec2 desiredSize = Vec2(100.0f, 100.0f);
 		};
 
@@ -18,7 +20,7 @@ namespace Silica {
 
 		void computeDesiredSize() override {}
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
-		void onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const override;
+		void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const override;
 
 	private:
 

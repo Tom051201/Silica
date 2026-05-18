@@ -1,10 +1,14 @@
 #include "SScrollBox.h"
 
+#include "Theme.h"
+
 namespace Silica {
 
 	void SScrollBox::construct(const Args& args) {
 		m_child = args.child;
 		m_scrollSpeed = args.scrollSpeed;
+		m_thumbColor = args.thumbColor.value_or(GetTheme().buttonNormal);
+		m_thumbDraggingColor = args.thumbDraggingColor.value_or(GetTheme().buttonHover);
 	}
 
 	void SScrollBox::computeDesiredSize() {
@@ -40,11 +44,11 @@ namespace Silica {
 		}
 	}
 
-	void SScrollBox::onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const {
+	void SScrollBox::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		if (m_child) {
 			Rect myRect(
-				allotedGeometry.position.x, allotedGeometry.position.x + allotedGeometry.size.x,
-				allotedGeometry.position.y, allotedGeometry.position.y + allotedGeometry.size.y
+				allocatedGeometry.position.x, allocatedGeometry.position.x + allocatedGeometry.size.x,
+				allocatedGeometry.position.y, allocatedGeometry.position.y + allocatedGeometry.size.y
 			);
 
 			// -- Draw and Clip the Content --
@@ -55,29 +59,29 @@ namespace Silica {
 
 			// -- Draw Scroll Bar --
 			if (m_maxScroll > 0.0f) {
-				float visibleRatio = allotedGeometry.size.y / m_child->getDesiredSize().y;
+				float visibleRatio = allocatedGeometry.size.y / m_child->getDesiredSize().y;
 
-				float thumbHeight = allotedGeometry.size.y * visibleRatio;
+				float thumbHeight = allocatedGeometry.size.y * visibleRatio;
 				if (thumbHeight < 20.0f) thumbHeight = 20.0f;
 
 				float scrollRatio = m_scrollOffset / m_maxScroll;
-				float availableTrack = allotedGeometry.size.y - thumbHeight;
-				float thumbY = allotedGeometry.position.y + (scrollRatio * availableTrack);
+				float availableTrack = allocatedGeometry.size.y - thumbHeight;
+				float thumbY = allocatedGeometry.position.y + (scrollRatio * availableTrack);
 
 				Geometry thumbGeo;
-				thumbGeo.position.x = allotedGeometry.position.x + allotedGeometry.size.x - 8.0f;
+				thumbGeo.position.x = allocatedGeometry.position.x + allocatedGeometry.size.x - 8.0f;
 				thumbGeo.position.y = thumbY;
 				thumbGeo.size.x = 8.0f;
 				thumbGeo.size.y = thumbHeight;
 
-				Color thumbColor = m_isDraggingThumb ? Color(150, 150, 150, 255) : Color(100, 100, 100, 128);
-				addRectToDrawList(outDrawList, thumbGeo, thumbColor);
+				Color drawColor = m_isDraggingThumb ? m_thumbDraggingColor : m_thumbColor;
+				addRectToDrawList(outDrawList, thumbGeo, drawColor);
 			}
 		}
 	}
 
-	EventReply SScrollBox::onMouseWheel(const Geometry& allotedGeometry, const Vec2& mousePos, float scrollDelta) {
-		if (allotedGeometry.contains(mousePos)) {
+	EventReply SScrollBox::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
+		if (allocatedGeometry.contains(mousePos)) {
 			if (m_child && m_child->getAllocatedGeometry().contains(mousePos)) {
 				EventReply reply = m_child->onMouseWheel(m_child->getAllocatedGeometry(), mousePos, scrollDelta);
 				if (reply.isHandled) return reply;
@@ -93,20 +97,20 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SScrollBox::onMouseMove(const Geometry& allotedGeometry, const Vec2& mousePos) {
+	EventReply SScrollBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_isDraggingThumb) {
-			float visibleRatio = allotedGeometry.size.y / m_child->getDesiredSize().y;
-			float thumbHeight = allotedGeometry.size.y * visibleRatio;
+			float visibleRatio = allocatedGeometry.size.y / m_child->getDesiredSize().y;
+			float thumbHeight = allocatedGeometry.size.y * visibleRatio;
 			if (thumbHeight < 20.0f) thumbHeight = 20.0f;
-			float availableTrack = allotedGeometry.size.y - thumbHeight;
+			float availableTrack = allocatedGeometry.size.y - thumbHeight;
 
 			if (availableTrack > 0.0f) {
 				float targetThumbY = mousePos.y - m_dragClickOffsetY;
 
-				if (targetThumbY < allotedGeometry.position.y) targetThumbY = allotedGeometry.position.y;
-				if (targetThumbY > allotedGeometry.position.y + availableTrack) targetThumbY = allotedGeometry.position.y + availableTrack;
+				if (targetThumbY < allocatedGeometry.position.y) targetThumbY = allocatedGeometry.position.y;
+				if (targetThumbY > allocatedGeometry.position.y + availableTrack) targetThumbY = allocatedGeometry.position.y + availableTrack;
 
-				float scrollRatio = (targetThumbY - allotedGeometry.position.y) / availableTrack;
+				float scrollRatio = (targetThumbY - allocatedGeometry.position.y) / availableTrack;
 				m_scrollOffset = scrollRatio * m_maxScroll;
 			}
 			return EventReply::handled();
@@ -116,8 +120,8 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SScrollBox::onMouseButtonDown(const Geometry& allotedGeometry, const Vec2& mousePos) {
-		Rect thumbRect = getThumbRect(allotedGeometry);
+	EventReply SScrollBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		Rect thumbRect = getThumbRect(allocatedGeometry);
 		if (thumbRect.contains(mousePos)) {
 			m_isDraggingThumb = true;
 			m_dragClickOffsetY = mousePos.y - thumbRect.top;
@@ -130,7 +134,7 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SScrollBox::onMouseButtonUp(const Geometry& allotedGeometry, const Vec2& mousePos) {
+	EventReply SScrollBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_isDraggingThumb) {
 			m_isDraggingThumb = false;
 			SWidget::setCapturedWidget(nullptr);

@@ -1,23 +1,26 @@
 #pragma once
 
-#include <cstdint>
+#include <string>
 #include <optional>
 
 #include "SWidget.h"
-#include "Renderer.h"
-#include "MathTypes.h"
+#include "FontAtlas.h"
 
 namespace Silica {
 
-	class SBox : public SWidget {
+	class SWindow : public SWidget {
 	public:
 
 		struct Args {
-			Vec2 padding = Vec2::zero();
+			std::string title = "Window";
+			Vec2 initialPosition = { 100.0f, 100.0f };
+			Vec2 initialSize = { 400.0f, 300.0f };
 			std::optional<Color> backgroundColor;
-			std::optional<Color> hoverColor;
-			std::function<EventReply()> onClick = nullptr;
-			WidgetPtr child = nullptr;
+			std::optional<Color> titleBarColor;
+			std::optional<Color> titleBarDraggingColor;
+			std::optional<Color> titleTextColor;
+			FontAtlas* font = nullptr;
+			WidgetPtr content = nullptr;
 		};
 
 		void construct(const Args& args);
@@ -29,16 +32,24 @@ namespace Silica {
 		EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
-		EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) override;
 
 	private:
 
-		Vec2 m_padding;
-		Color m_backgroundColor;
-		Color m_hoverColor;
-		std::function<EventReply()> m_onClick;
-		WidgetPtr m_child;
+		std::string m_title;
+		Vec2 m_position;
+		Vec2 m_size;
+		WidgetPtr m_content;
+		FontAtlas* m_font;
 
+		Color m_backgroundColor;
+		Color m_titleBarColor;
+		Color m_titleBarDraggingColor;
+		Color m_titleTextColor;
+
+		bool m_isDragging = false;
+		Vec2 m_dragClickOffset;
+
+		Rect getTitleBarRect() const;
 		void addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const;
 
 	};

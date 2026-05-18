@@ -15,6 +15,10 @@
 #include "Silica/include/STextBlock.h"
 #include "Silica/include/SEditableText.h"
 #include "Silica/include/SScrollBox.h"
+#include "Silica/include/SOverlay.h"
+#include "Silica/include/SWindow.h"
+#include "Silica/include/SSlider.h"
+#include "Silica/include/SCheckbox.h"
 
 inline void ThrowIfFailed(HRESULT hr) {
 	if (FAILED(hr)) throw std::runtime_error("DX12 Error");
@@ -115,202 +119,167 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 	waitForGpu();
 
 	// -- Build UI Tree --
-	m_uiRoot = Silica::MakeWidget<Silica::SBox>({
-		.padding = { 20.0f, 20.0f },
-		.backgroundColor = 0xFF1E1E1E,
-		.child = Silica::MakeWidget<Silica::SVerticalBox>({
-			.slots = {
+	m_uiRoot = Silica::MakeWidget<Silica::SOverlay>({
+		.children = {
+
+			// ==========================================================
+			// LAYER 1: MAIN EDITOR INTERFACE
+			// ==========================================================
+			Silica::MakeWidget<Silica::SVerticalBox>({
+				.slots = {
+
+					// --- TOOLBAR ---
+					{
+						.padding = { 0.0f, 0.0f },
+						.child = Silica::MakeWidget<Silica::SBox>({
+							.padding = { 10.0f, 10.0f },
+							.backgroundColor = 0xFF1E1E1E,
+							.child = Silica::MakeWidget<Silica::SHorizontalBox>({
+								.slots = {
+									{
+										.padding = { 5.0f, 0.0f },
+										.child = Silica::MakeWidget<Silica::SButton>({
+											.color = 0xFF3A3A3A, .hoverColor = 0xFF505050, .pressedColor = 0xFF2A2A2A,
+											.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Save", .font = &m_font })
+										})
+									},
+									{
+										.padding = { 5.0f, 0.0f },
+										.child = Silica::MakeWidget<Silica::SButton>({
+											.color = 0xFF3A3A3A, .hoverColor = 0xFF505050, .pressedColor = 0xFF2A2A2A,
+											.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Compile", .font = &m_font })
+										})
+									},
+									{
+										.padding = { 20.0f, 0.0f }, // Gap before Play button
+										.child = Silica::MakeWidget<Silica::SButton>({
+											.color = 0xFF2E5C2E, .hoverColor = 0xFF3D7A3D, .pressedColor = 0xFF1F3D1F, // Green!
+											.child = Silica::MakeWidget<Silica::STextBlock>({.text = "▶ Play", .font = &m_font })
+										})
+									}
+								}
+							})
+						})
+					},
+
+				// --- MAIN WORKSPACE (Horizontal Split) ---
 				{
 					.padding = { 0.0f, 0.0f },
 					.child = Silica::MakeWidget<Silica::SHorizontalBox>({
 						.slots = {
+
+							// 1. LEFT PANEL (Scene Outliner)
 							{
 								.padding = { 5.0f, 5.0f },
-								.child = Silica::MakeWidget<Silica::SButton>({
-									.padding = { 30.0f, 15.0f },
-									.color = 0xFF3A3A3A,
-									.hoverColor = 0xFF505050,
-									.pressedColor = 0xFF2A2A2A,
-									.onClick = []() {
-										OutputDebugStringA("Save Clicked!\n");
-										return Silica::EventReply::handled();
-									},
-									// NEW: Add the TextBlock as the Button's child!
-									.child = Silica::MakeWidget<Silica::STextBlock>({
-										.text = "Save",
-										.font = &m_font
+								.child = Silica::MakeWidget<Silica::SBox>({
+									.padding = { 10.0f, 10.0f },
+									.backgroundColor = 0xFF252526,
+									.child = Silica::MakeWidget<Silica::SScrollBox>({
+										.child = Silica::MakeWidget<Silica::SVerticalBox>({
+											.slots = {
+												{.padding = {0.0f, 2.0f}, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Main Camera", .font = &m_font }) },
+												{.padding = {0.0f, 2.0f}, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Directional Light", .font = &m_font }) },
+												{.padding = {0.0f, 2.0f}, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Player Cube", .font = &m_font }) },
+												{.padding = {0.0f, 2.0f}, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Ground Plane", .font = &m_font }) },
+												// ... add as many as you want to test scrolling!
+											}
+										})
 									})
 								})
 							},
-							{
-								.padding = { 5.0f, 5.0f },
-								.child = Silica::MakeWidget<Silica::SButton>({
-									.padding = { 30.0f, 15.0f },
-									.color = 0xFF3A3A3A,
-									.hoverColor = 0xFF505050,
-									.pressedColor = 0xFF2A2A2A,
-									.onClick = []() {
-										OutputDebugStringA("Compile Clicked!\n");
-										return Silica::EventReply::handled();
-									},
-									// NEW: Add the TextBlock as the Button's child!
-									.child = Silica::MakeWidget<Silica::STextBlock>({
-										.text = "Compile",
-										.font = &m_font
+
+						// 2. CENTER PANEL (3D Viewport Placeholder)
+						{
+							.padding = { 5.0f, 5.0f },
+							.child = Silica::MakeWidget<Silica::SBox>({
+							// We give it a massive padding/size so the layout clamp forces it to fill the center space!
+							.padding = { 100.0f, 100.0f },
+							.backgroundColor = 0xFF111111, // Very dark grey for the viewport
+							.child = Silica::MakeWidget<Silica::STextBlock>({
+								.text = "[ 3D Scene Viewport ]",
+								.color = Silica::Color(100, 100, 100),
+								.font = &m_font
+							})
+						})
+					},
+
+						// 3. RIGHT PANEL (Inspector)
+						{
+							.padding = { 5.0f, 5.0f },
+							.child = Silica::MakeWidget<Silica::SBox>({
+								.padding = { 10.0f, 10.0f },
+								.backgroundColor = 0xFF252526,
+								.child = Silica::MakeWidget<Silica::SScrollBox>({
+									.child = Silica::MakeWidget<Silica::SVerticalBox>({
+										.slots = {
+											{.padding = { 0.0f, 10.0f }, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Transform", .color = 0xFFAAAAAA, .font = &m_font }) },
+
+											{.padding = { 0.0f, 5.0f }, .child = Silica::MakeWidget<Silica::SEditableText>({.hintText = "X: 0.0", .font = &m_font }) },
+											{.padding = { 0.0f, 5.0f }, .child = Silica::MakeWidget<Silica::SEditableText>({.hintText = "Y: 10.0", .font = &m_font }) },
+											{.padding = { 0.0f, 5.0f }, .child = Silica::MakeWidget<Silica::SEditableText>({.hintText = "Z: 0.0", .font = &m_font }) },
+
+											{.padding = { 0.0f, 10.0f }, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Material", .color = 0xFFAAAAAA, .font = &m_font }) },
+											{.padding = { 0.0f, 5.0f }, .child = Silica::MakeWidget<Silica::SEditableText>({.hintText = "M_PlayerBody", .font = &m_font }) },
+											{.padding = { 0.0f, 10.0f }, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Light Settings", .color = 0xFFAAAAAA, .font = &m_font }) },
+
+											// A Checkbox with a Label
+											{.padding = { 0.0f, 5.0f }, .child = Silica::MakeWidget<Silica::SHorizontalBox>({
+												.slots = {
+													{.padding = {0.0f, 0.0f}, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Cast Shadows", .font = &m_font }) },
+													{.padding = {15.0f, 0.0f}, .child = Silica::MakeWidget<Silica::SCheckBox>({
+														.initialCheck = true,
+														.onCheckChanged = [](bool val) { OutputDebugStringA(val ? "Shadows ON\n" : "Shadows OFF\n"); }
+													}) }
+												}
+											})},
+
+										// A Slider with a Label
+										{.padding = { 0.0f, 5.0f }, .child = Silica::MakeWidget<Silica::SHorizontalBox>({
+											.slots = {
+												{.padding = {0.0f, 0.0f}, .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Intensity   ", .font = &m_font }) },
+												{.padding = {10.0f, 0.0f}, .child = Silica::MakeWidget<Silica::SSlider>({
+													.initialValue = 0.75f,
+													.onValueChanged = [](float val) { /* Update game light intensity here! */ }
+												}) }
+											}
+										})},
+										}
 									})
 								})
-							}
+							})
 						}
-					})
-				},
-
-			// ==========================================
-			// ROW 2: MAIN CONTENT AREA (CLIPPED)
-			// ==========================================
-			{
-				.padding = { 5.0f, 20.0f }, // Push it down slightly from the toolbar
-				.child = Silica::MakeWidget<Silica::SScrollBox>({
-					.child = Silica::MakeWidget<Silica::SBox>({
-						// This box acts as the background for our scrollable list
-						.padding = { 10.0f, 10.0f },
-						.backgroundColor = 0xFF252526,
-						.child = Silica::MakeWidget<Silica::SVerticalBox>({
-							.slots = {
-								// Fake "Properties" in the list
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SEditableText>({
-										.hintText = "Type your name...",
-										.font = &m_font
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-								{
-									.padding = { 0.0f, 5.0f },
-									.child = Silica::MakeWidget<Silica::SBox>({
-										.padding = { 100.0f, 20.0f },
-										.backgroundColor = 0xFF333333
-									})
-								},
-							}
-						})
-					})
+					}
 				})
 			}
 		}
-	})
-	});
+	}),
+
+				// ==========================================================
+				// LAYER 2: FLOATING WINDOWS
+				// ==========================================================
+				Silica::MakeWidget<Silica::SWindow>({
+					.title = "Asset Browser",
+					.initialPosition = { 250.0f, 150.0f },
+					.initialSize = { 400.0f, 250.0f },
+					.font = &m_font,
+					.content = Silica::MakeWidget<Silica::SBox>({
+						.padding = { 10.0f, 10.0f },
+						.backgroundColor = 0xFF333333,
+						.child = Silica::MakeWidget<Silica::SScrollBox>({
+							.child = Silica::MakeWidget<Silica::SHorizontalBox>({
+								.slots = {
+									// Fake asset icons
+									{.padding = {5.0f, 5.0f}, .child = Silica::MakeWidget<Silica::SButton>({.padding = {40.0f, 40.0f}, .color = 0xFF444444 }) },
+									{.padding = {5.0f, 5.0f}, .child = Silica::MakeWidget<Silica::SButton>({.padding = {40.0f, 40.0f}, .color = 0xFF444444 }) },
+									{.padding = {5.0f, 5.0f}, .child = Silica::MakeWidget<Silica::SButton>({.padding = {40.0f, 40.0f}, .color = 0xFF444444 }) },
+								}
+							})
+						})
+					})
+				})
+
+			}
+		});
 
 	return true;
 }

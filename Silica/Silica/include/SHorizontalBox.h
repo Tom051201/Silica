@@ -17,12 +17,12 @@ namespace Silica {
 
 		void computeDesiredSize() override;
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
-		void onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const override;
+		void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const override;
 
-		EventReply onMouseMove(const Geometry& allotedGeometry, const Vec2& mousePos) override;
-		EventReply onMouseButtonDown(const Geometry& allotedGeometry, const Vec2& mousePos) override;
-		EventReply onMouseButtonUp(const Geometry& allotedGeometry, const Vec2& mousePos) override;
-		EventReply onMouseWheel(const Geometry& allotedGeometry, const Vec2& mousePos, float scrollDelta) override;
+		EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
+		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
+		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
+		EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) override;
 
 	private:
 

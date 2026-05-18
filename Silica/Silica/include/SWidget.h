@@ -31,14 +31,14 @@ namespace Silica {
 		virtual void arrangeChildren(const Geometry& allocatedGeometry) {
 			m_allocatedGeometry = allocatedGeometry;
 		}
-		virtual void onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const = 0;
+		virtual void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const = 0;
 
-		virtual EventReply onMouseMove(const Geometry& allotedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
-		virtual EventReply onMouseButtonDown(const Geometry& allotedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
-		virtual EventReply onMouseButtonUp(const Geometry& allotedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
+		virtual EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
+		virtual EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
+		virtual EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
 		virtual EventReply onChar(char c) { return EventReply::unhandled(); }
 		virtual EventReply onKeyDown(int key) { return EventReply::unhandled(); }
-		virtual EventReply onMouseWheel(const Geometry& allotedGeometry, const Vec2& mousePos, float scrollDelta) { return EventReply::unhandled(); }
+		virtual EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) { return EventReply::unhandled(); }
 
 		static void setFocusedWidget(SWidget* widget) { s_focusedWidget = widget; }
 		static SWidget* getFocusedWidget() { return s_focusedWidget; }

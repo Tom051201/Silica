@@ -22,45 +22,37 @@ namespace Silica {
 
 	void SHorizontalBox::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
-
 		float currentX = allocatedGeometry.position.x;
 
 		for (const Slot& slot : m_slots) {
 			if (!slot.child) continue;
-
 			Vec2 childDesired = slot.child->getDesiredSize();
-
 			Geometry childGeo;
 			childGeo.position.x = currentX + slot.padding.x;
 			childGeo.position.y = allocatedGeometry.position.y + slot.padding.y;
 
 			childGeo.size.x = childDesired.x;
-			childGeo.size.y = childDesired.y;
+
+			childGeo.size.y = allocatedGeometry.size.y - (slot.padding.y * 2.0f);
+			if (childGeo.size.y < 0.0f) childGeo.size.y = 0.0f;
 
 			float maxAvailableX = (allocatedGeometry.position.x + allocatedGeometry.size.x) - childGeo.position.x - slot.padding.x;
-
 			if (childGeo.size.x > maxAvailableX) {
 				childGeo.size.x = maxAvailableX > 0 ? maxAvailableX : 0.0f;
 			}
 
-			float maxAvailableY = allocatedGeometry.size.y - (slot.padding.y * 2.0f);
-			if (childGeo.size.y > maxAvailableY) {
-				childGeo.size.y = maxAvailableY > 0 ? maxAvailableY : 0.0f;
-			}
-
 			slot.child->arrangeChildren(childGeo);
-
 			currentX += childGeo.size.x + (slot.padding.x * 2.0f);
 		}
 	}
 
-	void SHorizontalBox::onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const {
+	void SHorizontalBox::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		for (const Slot& slot : m_slots) {
 			if (slot.child) slot.child->onDraw(outDrawList, slot.child->getAllocatedGeometry());
 		}
 	}
 
-	EventReply SHorizontalBox::onMouseMove(const Geometry& allotedGeometry, const Vec2& mousePos) {
+	EventReply SHorizontalBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		EventReply finalReply = EventReply::unhandled();
 
 		for (const Slot& slot : m_slots) {
@@ -75,7 +67,7 @@ namespace Silica {
 		return finalReply;
 	}
 
-	EventReply SHorizontalBox::onMouseButtonDown(const Geometry& allotedGeometry, const Vec2& mousePos) {
+	EventReply SHorizontalBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		for (const Slot& slot : m_slots) {
 			if (slot.child && slot.child->getAllocatedGeometry().contains(mousePos)) {
 				EventReply reply = slot.child->onMouseButtonDown(slot.child->getAllocatedGeometry(), mousePos);
@@ -86,7 +78,7 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SHorizontalBox::onMouseButtonUp(const Geometry& allotedGeometry, const Vec2& mousePos) {
+	EventReply SHorizontalBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		for (const Slot& slot : m_slots) {
 			if (slot.child && slot.child->getAllocatedGeometry().contains(mousePos)) {
 				EventReply reply = slot.child->onMouseButtonUp(slot.child->getAllocatedGeometry(), mousePos);
@@ -97,7 +89,7 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SHorizontalBox::onMouseWheel(const Geometry& allotedGeometry, const Vec2& mousePos, float scrollDelta) {
+	EventReply SHorizontalBox::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
 		for (const Slot& slot : m_slots) {
 			if (slot.child && slot.child->getAllocatedGeometry().contains(mousePos)) {
 				EventReply reply = slot.child->onMouseWheel(slot.child->getAllocatedGeometry(), mousePos, scrollDelta);

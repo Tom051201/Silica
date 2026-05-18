@@ -1,12 +1,14 @@
 #include "SButton.h"
 
+#include "Theme.h"
+
 namespace Silica {
 
 	void SButton::construct(const Args& args) {
 		m_padding = args.padding;
-		m_color = args.color;
-		m_hoverColor = args.hoverColor;
-		m_pressedColor = args.pressedColor;
+		m_color = args.color.value_or(GetTheme().buttonNormal);
+		m_hoverColor = args.hoverColor.value_or(GetTheme().buttonHover);
+		m_pressedColor = args.pressedColor.value_or(GetTheme().buttonPressed);
 		m_onClick = args.onClick;
 		m_child = args.child;
 	}
@@ -34,25 +36,25 @@ namespace Silica {
 		}
 	}
 
-	void SButton::onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const {
+	void SButton::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		Color drawColor = m_isPressed ? m_pressedColor : (m_isHovered ? m_hoverColor : m_color);
 
 		if (drawColor.a() > 0) {
-			addRectToDrawList(outDrawList, allotedGeometry, drawColor);
+			addRectToDrawList(outDrawList, allocatedGeometry, drawColor);
 		}
 
 		if (m_child) {
 			Geometry childGeo;
-			childGeo.position.x = allotedGeometry.position.x + m_padding.x;
-			childGeo.position.y = allotedGeometry.position.y + m_padding.y;
-			childGeo.size.x = allotedGeometry.size.x - (m_padding.x * 2.0f);
-			childGeo.size.y = allotedGeometry.size.y - (m_padding.y * 2.0f);
+			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
+			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
+			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
+			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
 			m_child->onDraw(outDrawList, childGeo);
 		}
 	}
 
-	EventReply SButton::onMouseMove(const Geometry& allotedGeometry, const Vec2& mousePos) {
-		m_isHovered = allotedGeometry.contains(mousePos);
+	EventReply SButton::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		m_isHovered = allocatedGeometry.contains(mousePos);
 
 		if (!m_isHovered) {
 			m_isPressed = false;
@@ -66,16 +68,16 @@ namespace Silica {
 		return m_isHovered ? EventReply::handled() : EventReply::unhandled();
 	}
 
-	EventReply SButton::onMouseButtonDown(const Geometry& allotedGeometry, const Vec2& mousePos) {
-		if (allotedGeometry.contains(mousePos)) {
+	EventReply SButton::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (allocatedGeometry.contains(mousePos)) {
 			m_isPressed = true;
 			return EventReply::handled();
 		}
 		return EventReply::unhandled();
 	}
 
-	EventReply SButton::onMouseButtonUp(const Geometry& allotedGeometry, const Vec2& mousePos) {
-		if (m_isPressed && allotedGeometry.contains(mousePos)) {
+	EventReply SButton::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (m_isPressed && allocatedGeometry.contains(mousePos)) {
 			m_isPressed = false;
 			if (m_onClick) {
 				return m_onClick();

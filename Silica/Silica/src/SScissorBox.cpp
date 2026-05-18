@@ -17,13 +17,13 @@ namespace Silica {
 		}
 	}
 
-	void SScissorBox::onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const {
+	void SScissorBox::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		if (m_child) {
 			Rect myRect(
-				allotedGeometry.position.x,
-				allotedGeometry.position.x + allotedGeometry.size.x,
-				allotedGeometry.position.y,
-				allotedGeometry.position.y + allotedGeometry.size.y
+				allocatedGeometry.position.x,
+				allocatedGeometry.position.x + allocatedGeometry.size.x,
+				allocatedGeometry.position.y,
+				allocatedGeometry.position.y + allocatedGeometry.size.y
 			);
 
 			outDrawList.pushClipRect(myRect);
@@ -34,22 +34,22 @@ namespace Silica {
 		}
 	}
 
-	EventReply SScissorBox::onMouseMove(const Geometry& allotedGeometry, const Vec2& mousePos) {
-		if (m_child && allotedGeometry.contains(mousePos)) {
+	EventReply SScissorBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (m_child && allocatedGeometry.contains(mousePos)) {
 			return m_child->onMouseMove(m_child->getAllocatedGeometry(), mousePos);
 		}
 		return EventReply::unhandled();
 	}
 
-	EventReply SScissorBox::onMouseButtonDown(const Geometry& allotedGeometry, const Vec2& mousePos) {
-		if (m_child && allotedGeometry.contains(mousePos)) {
+	EventReply SScissorBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (m_child && allocatedGeometry.contains(mousePos)) {
 			return m_child->onMouseButtonDown(m_child->getAllocatedGeometry(), mousePos);
 		}
 		return EventReply::unhandled();
 	}
 
-	EventReply SScissorBox::onMouseButtonUp(const Geometry& allotedGeometry, const Vec2& mousePos) {
-		if (m_child && allotedGeometry.contains(mousePos)) {
+	EventReply SScissorBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (m_child && allocatedGeometry.contains(mousePos)) {
 			return m_child->onMouseButtonUp(m_child->getAllocatedGeometry(), mousePos);
 		}
 		return EventReply::unhandled();

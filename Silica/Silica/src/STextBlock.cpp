@@ -1,12 +1,13 @@
 #include "STextBlock.h"
 
 #include "Renderer.h"
+#include "Theme.h"
 
 namespace Silica {
 
 	void STextBlock::construct(const Args& args) {
 		m_text = args.text;
-		m_color = args.color;
+		m_color = args.color.value_or(GetTheme().textMain);
 		m_font = args.font;
 	}
 
@@ -26,11 +27,11 @@ namespace Silica {
 		SWidget::arrangeChildren(allocatedGeometry);
 	}
 
-	void STextBlock::onDraw(DrawList& outDrawList, const Geometry& allotedGeometry) const {
+	void STextBlock::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		if (!m_font || m_text.empty() || m_color.a() == 0) return;
 
-		float cursorX = allotedGeometry.position.x;
-		float baselineY = allotedGeometry.position.y + 16.0f;
+		float cursorX = allocatedGeometry.position.x;
+		float baselineY = allocatedGeometry.position.y + 16.0f;
 
 		for (char c : m_text) {
 			const Glyph& g = m_font->getGlyph(c);
