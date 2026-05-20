@@ -1,0 +1,417 @@
+#include "SDockSpace.h"
+
+#include <functional>
+#include <algorithm>
+
+#include "Renderer.h"
+#include "Theme.h"
+
+namespace Silica {
+
+	void SDockSpace::construct(const Args& args) {
+		m_rootNode = std::make_shared<SDockNode>();
+		m_rootNode->content = args.initialContent;
+		m_onUndockWindow = args.onUndockWindow;
+		m_titleBarColor = args.titleBarColor.value_or(GetTheme().backgroundPanel);
+	}
+
+	void SDockSpace::computeDesiredSize() {
+		m_desiredSize = Vec2::zero();
+	}
+
+	void SDockSpace::arrangeChildren(const Geometry& allocatedGeometry) {
+		SWidget::arrangeChildren(allocatedGeometry);
+		if (m_rootNode) {
+			arrangeNode(m_rootNode, allocatedGeometry);
+		}
+	}
+
+	void SDockSpace::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
+		addRectToDrawList(outDrawList, allocatedGeometry, GetTheme().backgroundDarkWorkspace);
+
+		if (m_rootNode) {
+			drawNode(m_rootNode, outDrawList);
+		}
+
+		// -- Draw Drag & Drop Preview Overlay --
+		if (m_previewNode && m_previewZone != DockZone::None) {
+			Geometry pGeo = m_previewNode->allocatedGeometry;
+
+			if (m_previewZone == DockZone::Left) pGeo.size.x /= 2.0f;
+			else if (m_previewZone == DockZone::Right) { pGeo.size.x /= 2.0f; pGeo.position.x += pGeo.size.x; }
+			else if (m_previewZone == DockZone::Top) pGeo.size.y /= 2.0f;
+			else if (m_previewZone == DockZone::Bottom) { pGeo.size.y /= 2.0f; pGeo.position.y += pGeo.size.y; }
+
+			if (m_previewZone != DockZone::Center) {
+				addRectToDrawList(outDrawList, pGeo, Color(70, 130, 180, 128));
+			}
+		}
+	}
+
+	EventReply SDockSpace::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		// -- Handle Active Dragging --
+		if (m_draggingNode) {
+			if (m_draggingNode->splitDirection == SplitDirection::Horizontal) {
+				Platform::setCursor(Platform::Cursor::ResizeEW);
+				float localX = mousePos.x - m_draggingNode->allocatedGeometry.position.x;
+				float totalWidth = m_draggingNode->allocatedGeometry.size.x - m_splitterThickness;
+				m_draggingNode->splitRatio = std::clamp(localX / totalWidth, 0.05f, 0.95f);
+			}
+			else if (m_draggingNode->splitDirection == SplitDirection::Vertical) {
+				Platform::setCursor(Platform::Cursor::ResizeNS);
+				float localY = mousePos.y - m_draggingNode->allocatedGeometry.position.y;
+				float totalHeight = m_draggingNode->allocatedGeometry.size.y - m_splitterThickness;
+				m_draggingNode->splitRatio = std::clamp(localY / totalHeight, 0.05f, 0.95f);
+			}
+			return EventReply::handled();
+		}
+
+		// -- Check Hovering Splitter --
+		m_hoveredNode = hitTestSplitter(m_rootNode, mousePos);
+		if (m_hoveredNode) {
+			if (m_hoveredNode->splitterRect.contains(mousePos)) {
+				if (m_hoveredNode->splitDirection == SplitDirection::Horizontal) {
+					Platform::setCursor(Platform::Cursor::ResizeEW);
+				}
+				else {
+					Platform::setCursor(Platform::Cursor::ResizeNS);
+				}
+			}
+			return EventReply::handled();
+		}
+
+		// -- Route Hover Events to UI Widgets --
+		std::function<EventReply(DockNodePtr)> routeMove = [&](DockNodePtr node) -> EventReply {
+			if (!node) return EventReply::unhandled();
+			if (node->splitDirection == SplitDirection::None) {
+				if (node->content) {
+					return node->content->onMouseMove(node->content->getAllocatedGeometry(), mousePos);
+				}
+			}
+			else {
+				EventReply rep = routeMove(node->child[1]);
+				if (rep.isHandled) return rep;
+				return routeMove(node->child[0]);
+			}
+			return EventReply::unhandled();
+		};
+
+		return routeMove(m_rootNode);
+	}
+
+	EventReply SDockSpace::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		// -- Check if Grabbed Title Bar --
+		DockNodePtr hitTab = hitTestTitleBar(m_rootNode, mousePos);
+		if (hitTab) {
+			undockNode(hitTab, mousePos);
+			return EventReply::handled();
+		}
+
+		// -- Check if Grabbed a Splitter --
+		m_draggingNode = hitTestSplitter(m_rootNode, mousePos);
+		if (m_draggingNode) {
+			SWidget::setCapturedWidget(this);
+			return EventReply::handled();
+		}
+
+		// -- Route The Click to UI Widgets --
+		std::function<EventReply(DockNodePtr)> routeDown = [&](DockNodePtr node) -> EventReply {
+			if (!node) return EventReply::unhandled();
+			if (node->splitDirection == SplitDirection::None) {
+				if (node->content && node->content->getAllocatedGeometry().contains(mousePos)) {
+					return node->content->onMouseButtonDown(node->content->getAllocatedGeometry(), mousePos);
+				}
+			}
+			else {
+				EventReply rep = routeDown(node->child[1]);
+				if (rep.isHandled) return rep;
+				return routeDown(node->child[0]);
+			}
+			return EventReply::unhandled();
+		};
+
+		return routeDown(m_rootNode);
+	}
+
+	EventReply SDockSpace::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (m_draggingNode) {
+			m_draggingNode = nullptr;
+			SWidget::setCapturedWidget(nullptr);
+			return EventReply::handled();
+		}
+
+		std::function<EventReply(DockNodePtr)> routeUp = [&](DockNodePtr node) -> EventReply {
+			if (!node) return EventReply::unhandled();
+			if (node->splitDirection == SplitDirection::None) {
+				if (node->content && node->content->getAllocatedGeometry().contains(mousePos)) {
+					return node->content->onMouseButtonUp(node->content->getAllocatedGeometry(), mousePos);
+				}
+			}
+			else {
+				EventReply rep = routeUp(node->child[1]);
+				if (rep.isHandled) return rep;
+				return routeUp(node->child[0]);
+			}
+			return EventReply::unhandled();
+		};
+
+		return routeUp(m_rootNode);
+	}
+
+	EventReply SDockSpace::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
+		std::function<EventReply(DockNodePtr)> routeWheel = [&](DockNodePtr node) -> EventReply {
+			if (!node) return EventReply::unhandled();
+			if (node->splitDirection == SplitDirection::None) {
+				if (node->content && node->content->getAllocatedGeometry().contains(mousePos)) {
+					return node->content->onMouseWheel(node->content->getAllocatedGeometry(), mousePos, scrollDelta);
+				}
+			}
+			else {
+				EventReply rep = routeWheel(node->child[1]);
+				if (rep.isHandled) return rep;
+				return routeWheel(node->child[0]);
+			}
+			return EventReply::unhandled();
+		};
+		return routeWheel(m_rootNode);
+	}
+
+	void SDockSpace::splitNode(DockNodePtr node, SplitDirection dir, float ratio, WidgetPtr newContent, bool insertFirst) {
+		if (!node || node->splitDirection != SplitDirection::None) return;
+
+		node->splitDirection = dir;
+		node->splitRatio = ratio;
+		node->child[0] = std::make_shared<SDockNode>();
+		node->child[1] = std::make_shared<SDockNode>();
+
+		if (insertFirst) {
+			node->child[0]->content = newContent;
+			node->child[1]->content = node->content;
+		}
+		else {
+			node->child[0]->content = node->content;
+			node->child[1]->content = newContent;
+		}
+
+		node->content = nullptr;
+	}
+
+	void SDockSpace::updateDragDropPreview(const Vec2& mousePos, bool isDragging) {
+		if (!isDragging) {
+			m_previewNode = nullptr;
+			m_previewZone = DockZone::None;
+			return;
+		}
+
+		m_previewNode = hitTestContentNode(m_rootNode, mousePos);
+		if (m_previewNode) {
+			float localX = (mousePos.x - m_previewNode->allocatedGeometry.position.x) / m_previewNode->allocatedGeometry.size.x;
+			float localY = (mousePos.y - m_previewNode->allocatedGeometry.position.y) / m_previewNode->allocatedGeometry.size.y;
+
+			if (localX < 0.25f) m_previewZone = DockZone::Left;
+			else if (localX > 0.75f) m_previewZone = DockZone::Right;
+			else if (localY < 0.25f) m_previewZone = DockZone::Top;
+			else if (localY > 0.75f) m_previewZone = DockZone::Bottom;
+			else m_previewZone = DockZone::Center;
+		}
+	}
+
+	bool SDockSpace::processDrop(WidgetPtr draggedContent) {
+		if (m_previewNode && m_previewZone != DockZone::None && m_previewZone != DockZone::Center) {
+
+			if (m_previewNode->content == nullptr && m_previewNode->splitDirection == SplitDirection::None) {
+				m_previewNode->content = draggedContent;
+				m_previewNode = nullptr;
+				m_previewZone = DockZone::None;
+				return true;
+			}
+
+			SplitDirection dir = (m_previewZone == DockZone::Left || m_previewZone == DockZone::Right) ? SplitDirection::Horizontal : SplitDirection::Vertical;
+			bool insertFirst = (m_previewZone == DockZone::Left || m_previewZone == DockZone::Top);
+
+			splitNode(m_previewNode, dir, 0.5f, draggedContent, insertFirst);
+
+			m_previewNode = nullptr;
+			m_previewZone = DockZone::None;
+			return true;
+		}
+		return false;
+	}
+
+	void SDockSpace::arrangeNode(DockNodePtr node, const Geometry& geo) {
+		if (!node) return;
+
+		node->allocatedGeometry = geo;
+
+		if (node->splitDirection == SplitDirection::None) {
+			if (node->content) {
+				node->titleBarRect = Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y, geo.position.y + 20.0f);
+
+				Geometry contentGeo;
+				contentGeo.position = { geo.position.x, geo.position.y + 20.0f };
+				contentGeo.size = { geo.size.x, geo.size.y - 20.0f };
+				if (contentGeo.size.y < 0) contentGeo.size.y = 0;
+
+				node->content->arrangeChildren(contentGeo);
+			}
+		}
+		// -- Left Right --
+		else if (node->splitDirection == SplitDirection::Horizontal) {
+			float totalWidth = geo.size.x - m_splitterThickness;
+			float leftWidth = totalWidth * node->splitRatio;
+			float rightWidth = totalWidth - leftWidth;
+
+			Geometry leftGeo = { geo.position, {leftWidth, geo.size.y} };
+			Geometry rightGeo = { {geo.position.x + leftWidth + m_splitterThickness, geo.position.y}, {rightWidth, geo.size.y} };
+
+			node->splitterRect = Rect(leftGeo.position.x + leftWidth, leftGeo.position.x + leftWidth + m_splitterThickness, geo.position.y, geo.position.y + geo.size.y);
+
+			if (node->child[0]) arrangeNode(node->child[0], leftGeo);
+			if (node->child[1]) arrangeNode(node->child[1], rightGeo);
+		}
+		// -- Top Bottom --
+		else if (node->splitDirection == SplitDirection::Vertical) {
+			float totalHeight = geo.size.y - m_splitterThickness;
+			float topHeight = totalHeight * node->splitRatio;
+			float bottomHeight = totalHeight - topHeight;
+
+			Geometry topGeo = { geo.position, {geo.size.x, topHeight} };
+			Geometry bottomGeo = { {geo.position.x, geo.position.y + topHeight + m_splitterThickness}, {geo.size.x, bottomHeight} };
+
+			node->splitterRect = Rect(geo.position.x, geo.position.x + geo.size.x, topGeo.position.y + topHeight, topGeo.position.y + topHeight + m_splitterThickness);
+
+			if (node->child[0]) arrangeNode(node->child[0], topGeo);
+			if (node->child[1]) arrangeNode(node->child[1], bottomGeo);
+		}
+	}
+
+	void SDockSpace::drawNode(const DockNodePtr& node, DrawList& drawList) const {
+		if (!node) return;
+
+		if (node->splitDirection == SplitDirection::None) {
+			if (node->content) {
+				// -- Draw Grab Handle --
+				Geometry tbGeo = {
+					{node->titleBarRect.left, node->titleBarRect.top},
+					{node->titleBarRect.right - node->titleBarRect.left, node->titleBarRect.bottom - node->titleBarRect.top}
+				};
+				addRectToDrawList(drawList, tbGeo, m_titleBarColor);
+
+				node->content->onDraw(drawList, node->content->getAllocatedGeometry());
+			}
+		}
+		else {
+			// -- Draw Splitter Handle --
+			Geometry splitterGeo = {
+				{node->splitterRect.left, node->splitterRect.top},
+				{node->splitterRect.right - node->splitterRect.left, node->splitterRect.bottom - node->splitterRect.top}
+			};
+
+			// Determine Color: Dragging > Hovering > Resting
+			Color sColor = GetTheme().backgroundWindow; // Resting Color (Dark)
+
+			if (m_draggingNode == node) {
+				sColor = GetTheme().accentPrimary;      // Dragging Color (Blue)
+			}
+			else if (m_hoveredNode == node) {
+				sColor = Color(120, 120, 120, 255);     // Hovering Color (Light Grey)
+			}
+
+			addRectToDrawList(drawList, splitterGeo, sColor);
+
+			// -- Recurse --
+			if (node->child[0]) drawNode(node->child[0], drawList);
+			if (node->child[1]) drawNode(node->child[1], drawList);
+		}
+	}
+
+	void SDockSpace::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
+		uint32_t startIndex = (uint32_t)drawList.vertices.size();
+		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color });
+		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color });
+		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
+		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
+
+		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
+		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
+		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
+		drawList.commands.back().indexCount += 6;
+	}
+
+	DockNodePtr SDockSpace::hitTestSplitter(const DockNodePtr& node, const Vec2& mousePos) {
+		if (!node || node->splitDirection == SplitDirection::None) return nullptr;
+
+		Rect hitRect = node->splitterRect;
+		if (node->splitDirection == SplitDirection::Horizontal) {
+			hitRect.left -= 6.0f;
+			hitRect.right += 6.0f;
+		}
+		else {
+			hitRect.top -= 6.0f;
+			hitRect.bottom += 6.0f;
+		}
+
+		if (hitRect.contains(mousePos)) return node;
+
+		auto leftHit = hitTestSplitter(node->child[0], mousePos);
+		if (leftHit) return leftHit;
+
+		return hitTestSplitter(node->child[1], mousePos);
+	}
+
+	DockNodePtr SDockSpace::hitTestContentNode(const DockNodePtr& node, const Vec2& mousePos) {
+		if (!node || !node->allocatedGeometry.contains(mousePos)) return nullptr;
+
+		if (node->splitDirection == SplitDirection::None) return node;
+
+		auto leftHit = hitTestContentNode(node->child[0], mousePos);
+		if (leftHit) return leftHit;
+
+		return hitTestContentNode(node->child[1], mousePos);
+	}
+
+	DockNodePtr SDockSpace::hitTestTitleBar(const DockNodePtr& node, const Vec2& mousePos) {
+		if (!node) return nullptr;
+		if (node->splitDirection == SplitDirection::None && node->titleBarRect.contains(mousePos)) return node;
+
+		auto leftHit = hitTestTitleBar(node->child[0], mousePos);
+
+		if (leftHit) return leftHit;
+		return hitTestTitleBar(node->child[1], mousePos);
+	}
+
+	bool SDockSpace::removeLeafNode(DockNodePtr parent, DockNodePtr target) {
+		if (!parent || parent->splitDirection == SplitDirection::None) return false;
+
+		if (parent->child[0] == target) {
+			DockNodePtr survivor = parent->child[1];
+			*parent = *survivor;
+			return true;
+		}
+		if (parent->child[1] == target) {
+			DockNodePtr survivor = parent->child[0];
+			*parent = *survivor;
+			return true;
+		}
+
+		if (removeLeafNode(parent->child[0], target)) return true;
+		if (removeLeafNode(parent->child[1], target)) return true;
+		return false;
+	}
+
+	void SDockSpace::undockNode(DockNodePtr node, const Vec2& mousePos) {
+		if (!node || !node->content) return;
+
+		WidgetPtr savedContent = node->content;
+
+		if (node == m_rootNode) {
+			m_rootNode->content = nullptr;
+		}
+		else {
+			removeLeafNode(m_rootNode, node);
+		}
+
+		if (m_onUndockWindow) m_onUndockWindow(savedContent, mousePos);
+	}
+
+}

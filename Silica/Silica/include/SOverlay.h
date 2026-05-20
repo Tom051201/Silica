@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <algorithm>
 
 #include "SWidget.h"
 
@@ -73,6 +74,17 @@ namespace Silica {
 				if (*it && (*it)->onMouseWheel((*it)->getAllocatedGeometry(), mousePos, scrollDelta).isHandled) return EventReply::handled();
 			}
 			return EventReply::unhandled();
+		}
+
+		void addChild(WidgetPtr child) {
+			m_children.push_back(child);
+		}
+
+		void removeChild(WidgetPtr child) {
+			auto it = std::find(m_children.begin(), m_children.end(), child);
+			if (it != m_children.end()) {
+				m_children.erase(it);
+			}
 		}
 
 	private:

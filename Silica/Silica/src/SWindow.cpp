@@ -83,6 +83,7 @@ namespace Silica {
 		if (m_isDragging) {
 			m_position.x = mousePos.x - m_dragClickOffset.x;
 			m_position.y = mousePos.y - m_dragClickOffset.y;
+			if (onDragMove) onDragMove(mousePos);
 			return EventReply::handled();
 		}
 
@@ -115,6 +116,7 @@ namespace Silica {
 		if (m_isDragging) {
 			m_isDragging = false;
 			SWidget::setCapturedWidget(nullptr);
+			if (onDragEnd) onDragEnd(mousePos);
 			return EventReply::handled();
 		}
 
@@ -122,6 +124,12 @@ namespace Silica {
 			return m_content->onMouseButtonUp(m_content->getAllocatedGeometry(), mousePos);
 		}
 		return EventReply::unhandled();
+	}
+
+	void SWindow::startDragging(const Vec2& mousePos) {
+		m_isDragging = true;
+		m_dragClickOffset = Vec2(mousePos.x - m_position.x, mousePos.y - m_position.y);
+		SWidget::setCapturedWidget(this);
 	}
 
 	Rect SWindow::getTitleBarRect() const {

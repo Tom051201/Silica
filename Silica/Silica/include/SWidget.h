@@ -9,7 +9,7 @@
 namespace Silica {
 
 	namespace Platform {
-		enum class Cursor { Arrow, TextInput };
+		enum class Cursor { Arrow, TextInput, ResizeEW, ResizeNS };
 		extern void setCursor(Cursor cursor);
 		extern void setMouseCapture(bool capture);
 	}

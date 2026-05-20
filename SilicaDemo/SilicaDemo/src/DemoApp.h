@@ -6,6 +6,9 @@
 
 #include "Silica/include/SBox.h"
 #include "Silica/include/FontAtlas.h"
+#include "Silica/include/SDockSpace.h"
+#include "Silica/include/SWindow.h"
+#include "Silica/include/SOverlay.h"
 
 class DemoApp {
 public:

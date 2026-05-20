@@ -26,11 +26,11 @@ namespace Silica {
 		}
 
 		void setCursor(Cursor cursor) {
-			if (cursor == Cursor::TextInput) {
-				::SetCursor(LoadCursor(NULL, IDC_IBEAM));
-			}
-			else {
-				::SetCursor(LoadCursor(NULL, IDC_ARROW));
+			switch (cursor) {
+				case Cursor::Arrow: { ::SetCursor(LoadCursor(NULL, IDC_ARROW)); break; }
+				case Cursor::TextInput: { ::SetCursor(LoadCursor(NULL, IDC_IBEAM)); break; }
+				case Cursor::ResizeEW: { ::SetCursor(LoadCursor(NULL, IDC_SIZEWE)); break; }
+				case Cursor::ResizeNS: { ::SetCursor(LoadCursor(NULL, IDC_SIZENS)); break; }
 			}
 		}
 	}
@@ -64,6 +64,8 @@ namespace Silica {
 			case WM_MOUSEMOVE: {
 				float x = static_cast<float>(GET_X_LPARAM(lParam));
 				float y = static_cast<float>(GET_Y_LPARAM(lParam));
+
+				Platform::setCursor(Platform::Cursor::Arrow);
 
 				Renderer::processMouseMove(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y);
 				return true;

@@ -33,6 +33,14 @@ namespace Silica {
 		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 
+		bool isDragging() const { return m_isDragging; }
+		void startDragging(const Vec2& mousePos);
+		void setContent(WidgetPtr content) { m_content = content; }
+		WidgetPtr getContent() const { return m_content; }
+
+		std::function<void(Vec2)> onDragMove = nullptr;
+		std::function<void(Vec2)> onDragEnd = nullptr;
+
 	private:
 
 		std::string m_title;

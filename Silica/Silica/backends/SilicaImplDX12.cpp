@@ -279,6 +279,9 @@ namespace Silica {
 		// -- Draw Commands --
 		for (const auto& cmd : drawData->commands) {
 			if (cmd.indexCount == 0) continue;
+			if (cmd.clipRect.right <= cmd.clipRect.left || cmd.clipRect.bottom <= cmd.clipRect.top) {
+				continue;
+			}
 
 			CD3DX12_GPU_DESCRIPTOR_HANDLE gpuHandle(
 				g_state.srvHeap->GetGPUDescriptorHandleForHeapStart(),
