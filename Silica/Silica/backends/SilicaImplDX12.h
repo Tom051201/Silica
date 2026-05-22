@@ -1,6 +1,7 @@
 #pragma once
 
 #include <d3d12.h>
+
 #include "../include/Renderer.h"
 
 namespace Silica {

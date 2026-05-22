@@ -2,8 +2,11 @@
 
 #include <memory>
 #include <optional>
+#include <vector>
+#include <string>
 
 #include "SWidget.h"
+#include "FontAtlas.h"
 
 namespace Silica {
 
@@ -12,19 +15,15 @@ namespace Silica {
 
 
 
-	enum class SplitDirection {
-		None,
-		Horizontal,
-		Vertical
-	};
+	enum class SplitDirection { None, Horizontal, Vertical };
+	enum class DockZone { None, Left, Right, Top, Bottom, Center };
 
 
 
-	enum class DockZone {
-		None,
-		Left, Right,
-		Top, Bottom,
-		Center
+	struct DockTab {
+		std::string title;
+		WidgetPtr content;
+		Rect hitRect;
 	};
 
 
@@ -34,7 +33,9 @@ namespace Silica {
 		float splitRatio = 0.5f;
 
 		DockNodePtr child[2];
-		WidgetPtr content = nullptr;
+
+		std::vector<DockTab> tabs;
+		int activeTab = 0;
 
 		Geometry allocatedGeometry;
 		Rect splitterRect;
@@ -47,9 +48,10 @@ namespace Silica {
 	public:
 
 		struct Args {
-			WidgetPtr initialContent = nullptr;
+			std::vector<DockTab> initialTabs;
 			std::optional<Color> titleBarColor;
-			std::function<void(WidgetPtr, Vec2)> onUndockWindow = nullptr;
+			FontAtlas* font = nullptr;
+			std::function<void(std::string, WidgetPtr, Vec2)> onUndockWindow = nullptr;
 		};
 
 		void construct(const Args& args);
@@ -63,31 +65,42 @@ namespace Silica {
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) override;
 
-		void splitNode(DockNodePtr node, SplitDirection dir, float ratio, WidgetPtr newContent, bool insertFirst = false);
+		void splitNode(DockNodePtr node, SplitDirection dir, float ratio, std::string title, WidgetPtr newContent, bool insertFirst = false);
 		DockNodePtr getRootNode() const { return m_rootNode; }
 		void updateDragDropPreview(const Vec2& mousePos, bool isDragging);
-		bool processDrop(WidgetPtr draggedContent);
-
+		bool processDrop(std::string title, WidgetPtr draggedContent);
 
 	private:
 
 		DockNodePtr m_rootNode;
+
+		// -- Splitter dragging --
 		DockNodePtr m_draggingNode;
 		DockNodePtr m_hoveredNode = nullptr;
+
+		// -- Tab clicking/dragging --
+		DockNodePtr m_pressedTabNode = nullptr;
+		int m_pressedTabIndex = -1;
+		Vec2 m_pressedMousePos;
+
 		DockNodePtr m_previewNode = nullptr;
 		float m_splitterThickness = 4.0f;
 		DockZone m_previewZone = DockZone::None;
-		std::function<void(WidgetPtr, Vec2)> m_onUndockWindow;
+
+		std::function<void(std::string, WidgetPtr, Vec2)> m_onUndockWindow;
 		Color m_titleBarColor;
+		FontAtlas* m_font = nullptr;
 
 		void arrangeNode(DockNodePtr node, const Geometry& geo);
 		void drawNode(const DockNodePtr& node, DrawList& drawList) const;
 		void addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const;
+
 		DockNodePtr hitTestSplitter(const DockNodePtr& node, const Vec2& mousePos);
 		DockNodePtr hitTestContentNode(const DockNodePtr& node, const Vec2& mousePos);
-		DockNodePtr hitTestTitleBar(const DockNodePtr& node, const Vec2& mousePos);
+		std::pair<DockNodePtr, int> hitTestTab(const DockNodePtr& node, const Vec2& mousePos);
+
 		bool removeLeafNode(DockNodePtr parent, DockNodePtr target);
-		void undockNode(DockNodePtr node, const Vec2& mousePos);
+		void undockNode(DockNodePtr node, int tabIndex, const Vec2& mousePos);
 
 	};
 

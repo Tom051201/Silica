@@ -14,6 +14,7 @@ namespace Silica {
 	public:
 
 		struct Args {
+			std::string initialTitle = "Workspace";
 			WidgetPtr initialContent = nullptr;
 			FontAtlas* font = nullptr;
 		};

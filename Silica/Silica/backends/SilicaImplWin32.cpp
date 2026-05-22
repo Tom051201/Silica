@@ -52,7 +52,7 @@ namespace Silica {
 		s_state.clientHeight = 0.0f;
 	}
 
-	bool ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, WidgetPtr rootWidget) {
+	bool ImplWin32_wndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, WidgetPtr rootWidget) {
 		if (!rootWidget) return false;
 
 		switch (msg) {

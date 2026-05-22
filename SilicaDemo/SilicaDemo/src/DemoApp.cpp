@@ -129,18 +129,20 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 
 	// 1. Create the Workspace Root
 	auto workspace = Silica::MakeWidget<Silica::SWorkspace>({
+		.initialTitle = "3D Viewport",
 		.initialContent = Silica::MakeWidget<Silica::SBox>({
 			.backgroundColor = Silica::GetTheme().backgroundDarkWorkspace,
 			.child = Silica::MakeWidget<Silica::STextBlock>({.text = "[ 3D Viewport ]" })
 		}),
 		.font = &m_font
-		});
+	});
 
-	// 2. Setup the initial docking layout
+	// 2. Setup the initial docking layout (pass "Left Panel" as the title!)
 	workspace->getDockSpace()->splitNode(
 		workspace->getDockSpace()->getRootNode(),
 		Silica::SplitDirection::Horizontal,
 		0.2f,
+		"Outliner", // <-- Name of the tab!
 		Silica::MakeWidget<Silica::SBox>({ .child = Silica::MakeWidget<Silica::STextBlock>({.text = "Left Panel" }) })
 	);
 
@@ -153,7 +155,7 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 		.content = Silica::MakeWidget<Silica::SBox>({
 			.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Drop me in a panel!", .font = &m_font})
 		})
-		});
+	});
 	workspace->addFloatingWindow(testWindow);
 
 	m_uiRoot = workspace;

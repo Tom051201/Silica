@@ -74,7 +74,7 @@ LRESULT CALLBACK WindowProc(HWND hwnd, UINT uMsg, WPARAM wParam, LPARAM lParam) 
 	DemoApp* app = reinterpret_cast<DemoApp*>(GetWindowLongPtr(hwnd, GWLP_USERDATA));
 
 	if (app && app->getUIRoot()) {
-		if (Silica::ImplWin32_WndProcHandler(hwnd, uMsg, wParam, lParam, app->getUIRoot())) {
+		if (Silica::ImplWin32_wndProcHandler(hwnd, uMsg, wParam, lParam, app->getUIRoot())) {
 			return 1;
 		}
 	}

@@ -37,6 +37,7 @@ namespace Silica {
 		void startDragging(const Vec2& mousePos);
 		void setContent(WidgetPtr content) { m_content = content; }
 		WidgetPtr getContent() const { return m_content; }
+		const std::string& getTitle() const { return m_title; }
 
 		std::function<void(Vec2)> onDragMove = nullptr;
 		std::function<void(Vec2)> onDragEnd = nullptr;

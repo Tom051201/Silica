@@ -1,6 +1,7 @@
 #pragma once
 
 #include <Windows.h>
+
 #include "../include/SWidget.h"
 
 namespace Silica {
@@ -9,6 +10,6 @@ namespace Silica {
 
 	void ImplWin32_shutdown();
 
-	bool ImplWin32_WndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, WidgetPtr rootWidget);
+	bool ImplWin32_wndProcHandler(HWND hwnd, UINT msg, WPARAM wParam, LPARAM lParam, WidgetPtr rootWidget);
 
 }
