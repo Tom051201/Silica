@@ -1,4 +1,4 @@
-#include "SSlider.h"
+#include "SSliderFloat.h"
 
 #include <algorithm>
 
@@ -7,8 +7,10 @@
 
 namespace Silica {
 
-	void SSlider::construct(const Args& args) {
-		m_value = std::clamp(args.initialValue, 0.0f, 1.0f);
+	void SSliderFloat::construct(const Args& args) {
+		m_min = args.minValue;
+		m_max = std::max(args.minValue, args.maxValue);
+		m_value = std::clamp(args.initialValue, m_min, m_max);
 		m_trackColor = args.trackColor.value_or(GetTheme().buttonPressed);
 		m_fillColor = args.fillColor.value_or(GetTheme().accentPrimary);
 		m_thumbColor = args.thumbColor.value_or(GetTheme().textDim);
@@ -16,21 +18,25 @@ namespace Silica {
 		m_onValueChanged = args.onValueChanged;
 	}
 
-	void SSlider::computeDesiredSize() {
+	void SSliderFloat::computeDesiredSize() {
 		m_desiredSize = Vec2(150.0f, 20.0f);
 	}
 
-	void SSlider::arrangeChildren(const Geometry& allocatedGeometry) {
+	void SSliderFloat::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 	}
 
-	void SSlider::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
+	void SSliderFloat::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
+		// -- Calculate Visual Percentage --
+		float percentage = 0.0f;
+		if (m_max > m_min) percentage = std::clamp((m_value - m_min) / (m_max - m_min), 0.0f, 1.0f); 
+
 		// -- Draw Background Track --
 		addRectToDrawList(outDrawList, allocatedGeometry, m_trackColor);
 
 		// -- Draw Fill Track --
 		Geometry fillGeo = allocatedGeometry;
-		fillGeo.size.x = allocatedGeometry.size.x * m_value;
+		fillGeo.size.x = allocatedGeometry.size.x * percentage;
 		addRectToDrawList(outDrawList, fillGeo, m_fillColor);
 
 		// -- Draw Thumb Handle --
@@ -46,46 +52,56 @@ namespace Silica {
 		}
 	}
 
-	void SSlider::updateValueFromMouse(float mouseX) {
+	void SSliderFloat::updateValueFromMouse(float mouseX) {
+		if (m_max <= m_min) return;
+
 		float localX = mouseX - m_allocatedGeometry.position.x;
-		float percentage = localX / m_allocatedGeometry.size.x;
+		float percentage = std::clamp(localX / m_allocatedGeometry.size.x, 0.0f, 1.0f);
 
-		m_value = std::clamp(percentage, 0.0f, 1.0f);
+		float newValue = m_min + (percentage * (m_max - m_min));
+		newValue = std::clamp(newValue, m_min, m_max);
 
-		if (m_onValueChanged) {
-			m_onValueChanged(m_value);
+		if (m_value != newValue) {
+			m_value = newValue;
+			if (m_onValueChanged) {
+				m_onValueChanged(m_value);
+			}
 		}
 	}
 
-	EventReply SSlider::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SSliderFloat::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (allocatedGeometry.contains(mousePos)) {
 			m_isDragging = true;
 			SWidget::setCapturedWidget(this);
 			updateValueFromMouse(mousePos.x);
 			return EventReply::handled();
 		}
+
 		return EventReply::unhandled();
 	}
 
-	EventReply SSlider::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SSliderFloat::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_isDragging) {
 			updateValueFromMouse(mousePos.x);
 			return EventReply::handled();
 		}
+
 		return EventReply::unhandled();
 	}
 
-	EventReply SSlider::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SSliderFloat::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_isDragging) {
 			m_isDragging = false;
 			SWidget::setCapturedWidget(nullptr);
 			return EventReply::handled();
 		}
+
 		return EventReply::unhandled();
 	}
 
-	void SSlider::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
+	void SSliderFloat::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
 		uint32_t startIndex = (uint32_t)drawList.vertices.size();
+
 		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color });
 		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color });
 		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });

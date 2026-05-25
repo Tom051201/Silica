@@ -8,12 +8,11 @@ namespace Silica {
 	public:
 
 		struct Args {
+			float spacing = 0.0f;
 			std::vector<Slot> slots;
 		};
 
-		void construct(const Args& args) {
-			m_slots = args.slots;
-		}
+		void construct(const Args& args);
 
 		void computeDesiredSize() override;
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
@@ -26,6 +25,7 @@ namespace Silica {
 
 	private:
 
+		float m_spacing;
 		std::vector<Slot> m_slots;
 
 	};

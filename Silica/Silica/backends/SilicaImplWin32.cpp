@@ -14,6 +14,7 @@ namespace Silica {
 	};
 
 	static BackendStateWin32 s_state;
+	static HCURSOR s_currentCursor = LoadCursor(NULL, IDC_ARROW);
 
 	namespace Platform {
 		void setMouseCapture(bool capture) {
@@ -27,12 +28,43 @@ namespace Silica {
 
 		void setCursor(Cursor cursor) {
 			switch (cursor) {
-				case Cursor::Arrow: { ::SetCursor(LoadCursor(NULL, IDC_ARROW)); break; }
-				case Cursor::TextInput: { ::SetCursor(LoadCursor(NULL, IDC_IBEAM)); break; }
-				case Cursor::ResizeEW: { ::SetCursor(LoadCursor(NULL, IDC_SIZEWE)); break; }
-				case Cursor::ResizeNS: { ::SetCursor(LoadCursor(NULL, IDC_SIZENS)); break; }
+				case Cursor::Arrow: { s_currentCursor = LoadCursor(NULL, IDC_ARROW); break; }
+				case Cursor::TextInput: { s_currentCursor = LoadCursor(NULL, IDC_IBEAM); break; }
+				case Cursor::ResizeEW: { s_currentCursor = LoadCursor(NULL, IDC_SIZEWE); break; }
+				case Cursor::ResizeNS: { s_currentCursor = LoadCursor(NULL, IDC_SIZENS); break; }
 			}
+			::SetCursor(s_currentCursor);
 		}
+	}
+
+	// ----- Win32 Key Mapper -----
+	static Key mapWin32KeyToSilica(WPARAM wParam) {
+		switch (wParam) {
+			case VK_LEFT: return Key::Left;
+			case VK_RIGHT: return Key::Right;
+			case VK_UP: return Key::Up;
+			case VK_DOWN: return Key::Down;
+			case VK_BACK: return Key::Backspace;
+			case VK_DELETE: return Key::Delete;
+			case VK_RETURN: return Key::Enter;
+			case VK_ESCAPE: return Key::Escape;
+			case VK_SPACE: return Key::Space;
+			case VK_TAB: return Key::Tab;
+			case VK_SHIFT: return Key::LeftShift;   // Note: GetKeyState is needed for Left vs Right
+			case VK_CONTROL: return Key::LeftControl;
+			case VK_MENU: return Key::LeftAlt;
+		}
+
+		// A-Z
+		if (wParam >= 0x41 && wParam <= 0x5A) {
+			return static_cast<Key>(static_cast<uint32_t>(Key::A) + (wParam - 0x41));
+		}
+		// 0-9
+		if (wParam >= 0x30 && wParam <= 0x39) {
+			return static_cast<Key>(static_cast<uint32_t>(Key::Num0) + (wParam - 0x30));
+		}
+
+		return Key::Unknown;
 	}
 
 	bool ImplWin32_init(HWND hwnd) {
@@ -56,6 +88,13 @@ namespace Silica {
 		if (!rootWidget) return false;
 
 		switch (msg) {
+			case WM_SETCURSOR: {
+				if (LOWORD(lParam) == HTCLIENT) {
+					::SetCursor(s_currentCursor);
+					return true;
+				}
+				return false;
+			}
 			case WM_SIZE: {
 				s_state.clientWidth = static_cast<float>(LOWORD(lParam));
 				s_state.clientHeight = static_cast<float>(HIWORD(lParam));
@@ -90,10 +129,17 @@ namespace Silica {
 				}
 				return 0;
 			}
-
 			case WM_KEYDOWN: {
 				if (SWidget::getFocusedWidget()) {
-					SWidget::getFocusedWidget()->onKeyDown((int)wParam);
+					Key mappedKey = mapWin32KeyToSilica(wParam);
+					SWidget::getFocusedWidget()->onKeyDown(mappedKey);
+				}
+				return 0;
+			}
+			case WM_KEYUP: {
+				if (SWidget::getFocusedWidget()) {
+					Key mappedKey = mapWin32KeyToSilica(wParam);
+					SWidget::getFocusedWidget()->onKeyUp(mappedKey);
 				}
 				return 0;
 			}

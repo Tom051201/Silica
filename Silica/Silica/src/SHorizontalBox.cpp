@@ -2,14 +2,23 @@
 
 namespace Silica {
 
+	void SHorizontalBox::construct(const Args& args) {
+		m_spacing = args.spacing;
+		m_slots = args.slots;
+	}
+
 	void SHorizontalBox::computeDesiredSize() {
 		m_desiredSize = Vec2::zero();
+		bool isFirstChild = true;
 
 		for (const Slot& slot : m_slots) {
 			if (!slot.child) continue;
 
 			slot.child->computeDesiredSize();
 			Vec2 childSize = slot.child->getDesiredSize();
+
+			if (!isFirstChild) m_desiredSize.x += m_spacing;
+			isFirstChild = false;
 
 			m_desiredSize.x += childSize.x + (slot.padding.x * 2.0f);
 
@@ -23,9 +32,14 @@ namespace Silica {
 	void SHorizontalBox::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 		float currentX = allocatedGeometry.position.x;
+		bool isFirstChild = true;
 
 		for (const Slot& slot : m_slots) {
 			if (!slot.child) continue;
+
+			if (!isFirstChild) currentX += m_spacing;
+			isFirstChild = false;
+
 			Vec2 childDesired = slot.child->getDesiredSize();
 			Geometry childGeo;
 			childGeo.position.x = currentX + slot.padding.x;
@@ -48,7 +62,9 @@ namespace Silica {
 
 	void SHorizontalBox::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		for (const Slot& slot : m_slots) {
-			if (slot.child) slot.child->onDraw(outDrawList, slot.child->getAllocatedGeometry());
+			if (slot.child) {
+				slot.child->onDraw(outDrawList, slot.child->getAllocatedGeometry());
+			}
 		}
 	}
 
@@ -96,6 +112,7 @@ namespace Silica {
 				if (reply.isHandled) return reply;
 			}
 		}
+
 		return EventReply::unhandled();
 	}
 

@@ -5,6 +5,7 @@
 #include <functional>
 
 #include "Geometry.h"
+#include "KeyCodes.h"
 
 namespace Silica {
 
@@ -37,7 +38,8 @@ namespace Silica {
 		virtual EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
 		virtual EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
 		virtual EventReply onChar(char c) { return EventReply::unhandled(); }
-		virtual EventReply onKeyDown(int key) { return EventReply::unhandled(); }
+		virtual EventReply onKeyDown(Key key) { return EventReply::unhandled(); }
+		virtual EventReply onKeyUp(Key key) { return EventReply::unhandled(); }
 		virtual EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) { return EventReply::unhandled(); }
 
 		static void setFocusedWidget(SWidget* widget) { s_focusedWidget = widget; }

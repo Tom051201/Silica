@@ -18,6 +18,22 @@ namespace Silica {
 
 	void SDockSpace::computeDesiredSize() {
 		m_desiredSize = Vec2::zero();
+
+		std::function<void(DockNodePtr)> computeNode = [&](DockNodePtr node) {
+			if (!node) return;
+
+			if (node->splitDirection == SplitDirection::None) {
+				for (auto& tab : node->tabs) {
+					if (tab.content) tab.content->computeDesiredSize();
+				}
+			}
+			else {
+				computeNode(node->child[0]);
+				computeNode(node->child[1]);
+			}
+		};
+
+		computeNode(m_rootNode);
 	}
 
 	void SDockSpace::arrangeChildren(const Geometry& allocatedGeometry) {

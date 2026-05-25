@@ -8,11 +8,15 @@
 namespace Silica {
 
 	void SEditableText::construct(const Args& args) {
+		m_text = args.initialText;
+		m_cursorIndex = (int)m_text.length();
 		m_hintText = args.hintText;
 		m_textColor = args.textColor.value_or(GetTheme().textMain);
 		m_backgroundColor = args.backgroundColor.value_or(GetTheme().buttonPressed);
 		m_focusedColor = args.focusedColor.value_or(GetTheme().buttonNormal);
 		m_font = args.font;
+		m_onTextChanged = args.onTextChanged;
+		m_onTextCommitted = args.onTextCommitted;
 	}
 
 	void SEditableText::computeDesiredSize() {
@@ -32,13 +36,12 @@ namespace Silica {
 		addRectToDrawList(outDrawList, allocatedGeometry, hasFocus ? m_focusedColor : m_backgroundColor);
 
 		// -- Push Clipping Rect For Text --
-		Rect clipRect(
+		outDrawList.pushClipRect(Rect(
 			allocatedGeometry.position.x,
 			allocatedGeometry.position.x + allocatedGeometry.size.x,
 			allocatedGeometry.position.y,
 			allocatedGeometry.position.y + allocatedGeometry.size.y
-		);
-		outDrawList.pushClipRect(clipRect);
+		));
 
 
 		// -- Draw Text --
@@ -48,8 +51,16 @@ namespace Silica {
 		float cursorX = allocatedGeometry.position.x + 5.0f;
 		float baselineY = allocatedGeometry.position.y + 20.0f;
 
-		for (char c : textToDraw) {
+		float blinkingCursorPixelX = cursorX;
+
+		for (size_t i = 0; i < textToDraw.length(); ++i) {
+			char c = textToDraw[i];
 			const Glyph& g = m_font->getGlyph(c);
+
+			if (hasFocus && i == m_cursorIndex) {
+				blinkingCursorPixelX = cursorX;
+			}
+
 			if (g.size.x > 0 && g.size.y > 0) {
 				float x0 = cursorX + g.offset.x;
 				float y0 = baselineY + g.offset.y;
@@ -71,12 +82,16 @@ namespace Silica {
 			cursorX += g.advanceX;
 		}
 
+		if (hasFocus && m_cursorIndex == textToDraw.length()) {
+			blinkingCursorPixelX = cursorX;
+		}
+
 		// -- Draw Blinking Cursor if Focused --
 		auto now = std::chrono::steady_clock::now();
 		auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
 		if (hasFocus && (millis / 500) % 2 == 0) {
-			Geometry cursorGeo = { {cursorX, allocatedGeometry.position.y + 5.0f}, {2.0f, 20.0f} };
+			Geometry cursorGeo = { {blinkingCursorPixelX, allocatedGeometry.position.y + 5.0f}, {2.0f, 20.0f} };
 			addRectToDrawList(outDrawList, cursorGeo, m_textColor);
 		}
 
@@ -84,11 +99,51 @@ namespace Silica {
 		outDrawList.popClipRect();
 	}
 
-	EventReply SEditableText::onMouseButtonDown(const Geometry & allocatedGeometry, const Vec2 & mousePos) {
+	EventReply SEditableText::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (allocatedGeometry.contains(mousePos)) {
-			SWidget::setFocusedWidget(this);
+			// -- Force Cursor To Stay As I-Beam --
+			Platform::setCursor(Platform::Cursor::TextInput);
+
+			if (SWidget::getFocusedWidget() != this) {
+				m_cursorIndex = (int)m_text.length();
+				SWidget::setFocusedWidget(this);
+			}
+
+			// -- Calculate Cursor Position --
+			if (m_font && !m_text.empty()) {
+				float currentX = allocatedGeometry.position.x + 5.0f;
+				int newIndex = 0;
+				bool found = false;
+
+				for (size_t i = 0; i < m_text.length(); ++i) {
+					const Glyph& g = m_font->getGlyph(m_text[i]);
+
+					// -- Snapping --
+					if (mousePos.x < currentX + (g.advanceX * 0.5f)) {
+						newIndex = (int)i;
+						found = true;
+						break;
+					}
+					currentX += g.advanceX;
+				}
+
+				if (!found) {
+					newIndex = (int)m_text.length();
+				}
+
+				m_cursorIndex = newIndex;
+			}
+			else {
+				m_cursorIndex = 0;
+			}
+
 			return EventReply::handled();
 		}
+		else if (SWidget::getFocusedWidget() == this) {
+			if (m_onTextCommitted) m_onTextCommitted(m_text);
+			SWidget::setFocusedWidget(nullptr);
+		}
+
 		return EventReply::unhandled();
 	}
 
@@ -96,21 +151,50 @@ namespace Silica {
 		if (allocatedGeometry.contains(mousePos)) {
 			Platform::setCursor(Platform::Cursor::TextInput);
 		}
+
 		return EventReply::unhandled();
 	}
 
 	EventReply SEditableText::onChar(char c) {
 		if (c == '\b') { // Backspace
-			if (!m_text.empty()) m_text.pop_back();
+			if (m_cursorIndex > 0) {
+				m_text.erase(m_cursorIndex - 1, 1);
+				m_cursorIndex--;
+				if (m_onTextChanged) m_onTextChanged(m_text);
+			}
 		}
 		else if (c >= 32 && c <= 126) {
-			m_text += c;
+			m_text.insert(m_cursorIndex, 1, c);
+			m_cursorIndex++;
+			if (m_onTextChanged) m_onTextChanged(m_text);
 		}
+
 		return EventReply::handled();
 	}
 
-	EventReply SEditableText::onKeyDown(int key) {
-		return EventReply::handled();
+	EventReply SEditableText::onKeyDown(Key key) {
+		if (key == Key::Left) {
+			if (m_cursorIndex > 0) m_cursorIndex--;
+			return EventReply::handled();
+		}
+		else if (key == Key::Right) {
+			if (m_cursorIndex < m_text.length()) m_cursorIndex++;
+			return EventReply::handled();
+		}
+		else if (key == Key::Delete) {
+			if (m_cursorIndex < m_text.length()) {
+				m_text.erase(m_cursorIndex, 1);
+				if (m_onTextChanged) m_onTextChanged(m_text);
+			}
+			return EventReply::handled();
+		}
+		else if (key == Key::Enter) {
+			if (m_onTextCommitted) m_onTextCommitted(m_text);
+			SWidget::setFocusedWidget(nullptr);
+			return EventReply::handled();
+		}
+
+		return EventReply::unhandled();
 	}
 
 	void SEditableText::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {

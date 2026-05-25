@@ -12,7 +12,7 @@ namespace Silica {
 		SWidget::arrangeChildren(allocatedGeometry);
 	}
 
-	void SImage::onDraw(DrawList & outDrawList, const Geometry & allocatedGeometry) const {
+	void SImage::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		if (m_tintColor.a() == 0) return;
 
 		outDrawList.pushTextureID(m_textureId);
