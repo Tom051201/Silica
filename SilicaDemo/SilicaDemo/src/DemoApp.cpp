@@ -26,6 +26,7 @@
 #include "Silica/include/SSliderInt.h"
 #include "Silica/include/SCollapsingHeader.h"
 #include "Silica/include/SColorPicker.h"
+#include "SIlica/include/SMenuAnchor.h"
 
 class SBorderLayout : public Silica::SWidget {
 public:
@@ -176,12 +177,55 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 	// -- Build UI Tree --
 
 	// -- Menu Bar --
+	// 1. Create a cascading sub-menu for "Export" (Opens on Hover, to the Right)
+	auto exportSubMenu = Silica::MakeWidget<Silica::SMenuAnchor>({
+		.openOnHover = true,
+		.openToRight = true,
+		.showArrow = true,
+		.anchorContent = Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Export", .font = &m_font})}),
+		.menuContent = Silica::MakeWidget<Silica::SBox>({
+			.backgroundColor = Silica::Color(50, 50, 50, 255),
+			.child = Silica::MakeWidget<Silica::SVerticalBox>({
+				.spacing = 2.0f,
+				.slots = {
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Windows (.exe)", .font = &m_font})}) },
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Linux (.elf)", .font = &m_font})}) },
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Web (HTML5)", .font = &m_font})}) }
+				}
+			})
+		})
+	});
+
+	// 2. Create the main "File" menu (Opens on Click, Downwards)
+	auto fileMenu = Silica::MakeWidget<Silica::SMenuAnchor>({
+		.openOnHover = false,
+		.openToRight = false,
+		.anchorContent = Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "File", .font = &m_font})}),
+		.menuContent = Silica::MakeWidget<Silica::SBox>({
+			.backgroundColor = Silica::Color(45, 45, 45, 255),
+			.child = Silica::MakeWidget<Silica::SVerticalBox>({
+				.spacing = 2.0f,
+				.slots = {
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "New Scene", .font = &m_font})}) },
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Open Scene...", .font = &m_font})}) },
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Save", .font = &m_font})}) },
+					// Separator Line
+					{ {5, 2}, Silica::MakeWidget<Silica::SBox>({.backgroundColor = Silica::Color(60,60,60,255), .child = Silica::MakeWidget<Silica::STextBlock>({.text = "", .font = &m_font})}) },
+					// Inject the nested sub-menu here
+					{ {5, 2}, exportSubMenu },
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Exit", .font = &m_font})}) }
+				}
+			})
+		})
+	});
+
+	// 3. Assemble the Main Menu Bar
 	auto mainMenuBar = Silica::MakeWidget<Silica::SBox>({
 		.backgroundColor = Silica::Color(40, 40, 40, 255),
 		.child = Silica::MakeWidget<Silica::SHorizontalBox>({
 			.slots = {
 				{ {15, 6}, Silica::MakeWidget<Silica::STextBlock>({.text = "AXION STUDIO", .font = &m_font}) },
-				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "File", .font = &m_font})}) },
+				{ {2, 2}, fileMenu }, // <-- Inject the fully assembled File Menu!
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Edit", .font = &m_font})}) },
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "View", .font = &m_font})}) },
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Project", .font = &m_font})}) },

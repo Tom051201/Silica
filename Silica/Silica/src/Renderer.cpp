@@ -3,6 +3,8 @@
 namespace Silica {
 
 	DrawList Renderer::s_drawList;
+	Vec2 Renderer::s_mousePosition;
+	std::vector<PopupRecord> Renderer::s_popups;
 
 	// ----- Draw Command -----
 	void DrawList::addDrawCommand() {
@@ -71,20 +73,27 @@ namespace Silica {
 		s_drawList.textureIDStack.clear();
 
 		s_drawList.pushClipRect(Rect(0, screenWidth, 0, screenHeight));
-
 		Geometry screenGeo = { {0.0f, 0.0f}, {screenWidth, screenHeight} };
 
-		// -- Bottom-Up Layout (Compute Sizes) --
-		rootWidget->computeDesiredSize();
+		s_popups.clear();
 
-		// -- Top-Down Layout (Allocate space) --
+		// -- Main Tree --
+		rootWidget->computeDesiredSize();
 		rootWidget->arrangeChildren(screenGeo);
 
-		// -- Draw (Generate Vertices) --
+		// -- Draw Main Tree --
 		rootWidget->onDraw(s_drawList, screenGeo);
+
+		// -- Draw Popup On Top --
+		for (const auto& popup : s_popups) {
+			s_drawList.pushClipRect(Rect(0, screenWidth, 0, screenHeight));
+			popup.widget->onDraw(s_drawList, popup.geometry);
+			s_drawList.popClipRect();
+		}
 	}
 
 	void Renderer::processMouseMove(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY) {
+		s_mousePosition = { mouseX, mouseY };
 		Platform::setCursor(Platform::Cursor::Arrow);
 
 		if (SWidget::getCapturedWidget()) {
@@ -93,15 +102,44 @@ namespace Silica {
 			return;
 		}
 
+		bool popupHandled = false;
+
+		for (auto it = s_popups.rbegin(); it != s_popups.rend(); ++it) {
+			if (!popupHandled && it->geometry.contains({ mouseX, mouseY })) {
+				if (it->widget->onMouseMove(it->geometry, { mouseX, mouseY }).isHandled) {
+					popupHandled = true;
+					continue;
+				}
+			}
+
+			it->widget->onMouseMove(it->geometry, popupHandled ? Vec2(-9999.0f, -9999.0f) : Vec2(mouseX, mouseY));
+		}
+
 		if (rootWidget) {
 			Geometry rootGeo = { {0, 0}, {screenWidth, screenHeight} };
-			rootWidget->onMouseMove(rootGeo, { mouseX, mouseY });
+			rootWidget->onMouseMove(rootGeo, popupHandled ? Vec2(-9999.0f, -9999.0f) : Vec2(mouseX, mouseY));
 		}
 	}
 
 	void Renderer::processMouseClick(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY) {
 		SWidget::setFocusedWidget(nullptr);
-		if (rootWidget) {
+
+		bool hitPopup = false;
+		for (auto it = s_popups.rbegin(); it != s_popups.rend(); ++it) {
+			if (it->geometry.contains({ mouseX, mouseY })) {
+				it->widget->onMouseButtonDown(it->geometry, { mouseX, mouseY });
+				hitPopup = true;
+				break;
+			}
+		}
+
+		if (!hitPopup && !s_popups.empty()) {
+			for (const auto& popup : s_popups) {
+				if (popup.closeCallback) popup.closeCallback();
+			}
+		}
+
+		if (!hitPopup && rootWidget) {
 			Geometry rootGeo = { {0, 0}, {screenWidth, screenHeight} };
 			rootWidget->onMouseButtonDown(rootGeo, { mouseX, mouseY });
 		}
@@ -114,6 +152,16 @@ namespace Silica {
 			return;
 		}
 
+		for (auto it = s_popups.rbegin(); it != s_popups.rend(); ++it) {
+			if (it->geometry.contains({ mouseX, mouseY })) {
+				EventReply reply = it->widget->onMouseButtonUp(it->geometry, { mouseX, mouseY });
+				if (reply.isHandled) {
+					if (it->closeCallback) it->closeCallback();
+					return;
+				}
+			}
+		}
+
 		if (rootWidget) {
 			Geometry rootGeo = { {0, 0}, {screenWidth, screenHeight} };
 			rootWidget->onMouseButtonUp(rootGeo, { mouseX, mouseY });
@@ -121,10 +169,20 @@ namespace Silica {
 	}
 
 	void Renderer::processMouseWheel(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY, float scrollDelta) {
+		for (auto it = s_popups.rbegin(); it != s_popups.rend(); ++it) {
+			if (it->geometry.contains({ mouseX, mouseY })) {
+				if (it->widget->onMouseWheel(it->geometry, { mouseX, mouseY }, scrollDelta).isHandled) return;
+			}
+		}
+
 		if (rootWidget) {
 			Geometry rootGeo = { {0, 0}, {screenWidth, screenHeight} };
 			rootWidget->onMouseWheel(rootGeo, { mouseX, mouseY }, scrollDelta);
 		}
+	}
+
+	void Renderer::pushPopup(WidgetPtr widget, const Geometry& geo, std::function<void()> closeCallback) {
+		s_popups.push_back({ widget, geo, closeCallback });
 	}
 
 }

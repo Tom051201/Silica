@@ -2,8 +2,10 @@
 
 #include <stdint.h>
 #include <vector>
+#include <functional>
 
 #include "MathTypes.h"
+#include "SWidget.h"
 
 namespace Silica {
 
@@ -39,8 +41,12 @@ namespace Silica {
 		TextureID getCurrentTextureID() const;
 		void pushTextureID(TextureID id);
 		void popTextureID();
+	};
 
-
+	struct PopupRecord {
+		WidgetPtr widget;
+		Geometry geometry;
+		std::function<void()> closeCallback;
 	};
 
 }
@@ -56,6 +62,7 @@ namespace Silica {
 	public:
 
 		static DrawList s_drawList;
+		static Vec2 s_mousePosition;
 
 		static void render(WidgetPtr rootWidget, float screenWidth, float screenHeight);
 
@@ -65,6 +72,12 @@ namespace Silica {
 		static void processMouseWheel(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY, float scrollDelta);
 
 		static const DrawList* getDrawData() { return &s_drawList; }
+
+		static void pushPopup(WidgetPtr widget, const Geometry& geo, std::function<void()> closeCallback);
+
+	private:
+
+		static std::vector<PopupRecord> s_popups;
 
 	};
 
