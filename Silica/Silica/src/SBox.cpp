@@ -75,7 +75,7 @@ namespace Silica {
 		return m_isHovered ? EventReply::handled() : EventReply::unhandled();
 	}
 
-	EventReply SBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_child) {
 			Geometry childGeo;
 			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
@@ -83,7 +83,7 @@ namespace Silica {
 			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
 			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
 
-			EventReply reply = m_child->onMouseButtonDown(childGeo, mousePos);
+			EventReply reply = m_child->onMouseButtonDown(childGeo, mousePos, button);
 			if (reply.isHandled) return reply;
 		}
 
@@ -97,7 +97,7 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_child) {
 			Geometry childGeo;
 			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
@@ -105,7 +105,7 @@ namespace Silica {
 			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
 			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
 
-			EventReply reply = m_child->onMouseButtonUp(childGeo, mousePos);
+			EventReply reply = m_child->onMouseButtonUp(childGeo, mousePos, button);
 			if (reply.isHandled) return reply;
 		}
 

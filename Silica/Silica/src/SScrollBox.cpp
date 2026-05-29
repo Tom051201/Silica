@@ -120,7 +120,7 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SScrollBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SScrollBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		Rect thumbRect = getThumbRect(allocatedGeometry);
 		if (thumbRect.contains(mousePos)) {
 			m_isDraggingThumb = true;
@@ -130,18 +130,18 @@ namespace Silica {
 			return EventReply::handled();
 		}
 
-		if (m_child) return m_child->onMouseButtonDown(m_child->getAllocatedGeometry(), mousePos);
+		if (m_child) return m_child->onMouseButtonDown(m_child->getAllocatedGeometry(), mousePos, button);
 		return EventReply::unhandled();
 	}
 
-	EventReply SScrollBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SScrollBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_isDraggingThumb) {
 			m_isDraggingThumb = false;
 			SWidget::setCapturedWidget(nullptr);
 			return EventReply::handled();
 		}
 
-		if (m_child) return m_child->onMouseButtonUp(m_child->getAllocatedGeometry(), mousePos);
+		if (m_child) return m_child->onMouseButtonUp(m_child->getAllocatedGeometry(), mousePos, button);
 		return EventReply::unhandled();
 	}
 

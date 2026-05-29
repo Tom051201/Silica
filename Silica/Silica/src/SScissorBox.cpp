@@ -41,16 +41,16 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SScissorBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SScissorBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_child && allocatedGeometry.contains(mousePos)) {
-			return m_child->onMouseButtonDown(m_child->getAllocatedGeometry(), mousePos);
+			return m_child->onMouseButtonDown(m_child->getAllocatedGeometry(), mousePos, button);
 		}
 		return EventReply::unhandled();
 	}
 
-	EventReply SScissorBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SScissorBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_child && allocatedGeometry.contains(mousePos)) {
-			return m_child->onMouseButtonUp(m_child->getAllocatedGeometry(), mousePos);
+			return m_child->onMouseButtonUp(m_child->getAllocatedGeometry(), mousePos, button);
 		}
 		return EventReply::unhandled();
 	}

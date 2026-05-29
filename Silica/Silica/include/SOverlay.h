@@ -42,9 +42,9 @@ namespace Silica {
 			}
 		}
 
-		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) override {
+		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override {
 			for (auto it = m_children.rbegin(); it != m_children.rend(); it++) {
-				if (*it && (*it)->onMouseButtonDown((*it)->getAllocatedGeometry(), mousePos).isHandled) {
+				if (*it && (*it)->onMouseButtonDown((*it)->getAllocatedGeometry(), mousePos, button).isHandled) {
 					return EventReply::handled();
 				}
 			}
@@ -62,9 +62,9 @@ namespace Silica {
 			return finalReply;
 		}
 
-		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) override {
+		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override {
 			for (auto it = m_children.rbegin(); it != m_children.rend(); ++it) {
-				if (*it && (*it)->onMouseButtonUp((*it)->getAllocatedGeometry(), mousePos).isHandled) return EventReply::handled();
+				if (*it && (*it)->onMouseButtonUp((*it)->getAllocatedGeometry(), mousePos, button).isHandled) return EventReply::handled();
 			}
 			return EventReply::unhandled();
 		}

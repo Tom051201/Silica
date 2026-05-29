@@ -24,4 +24,12 @@ namespace Silica {
 
 	};
 
+	enum class MouseButton : uint32_t {
+		Left,
+		Right,
+		Middle,
+		Side1,
+		Side2
+	};
+
 }

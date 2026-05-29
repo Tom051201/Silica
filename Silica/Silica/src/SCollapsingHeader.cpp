@@ -97,24 +97,24 @@ namespace Silica {
 		return m_isHeaderHovered ? EventReply::handled() : EventReply::unhandled();
 	}
 
-	EventReply SCollapsingHeader::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SCollapsingHeader::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		// -- Toggle State --
-		if (getHeaderRect().contains(mousePos)) {
+		if (button == MouseButton::Left && getHeaderRect().contains(mousePos)) {
 			m_isOpen = !m_isOpen;
 			return EventReply::handled();
 		}
 
 		// -- Pass To Content --
 		if (m_isOpen && m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
-			return m_content->onMouseButtonDown(m_content->getAllocatedGeometry(), mousePos);
+			return m_content->onMouseButtonDown(m_content->getAllocatedGeometry(), mousePos, button);
 		}
 
 		return EventReply::unhandled();
 	}
 
-	EventReply SCollapsingHeader::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SCollapsingHeader::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_isOpen && m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
-			return m_content->onMouseButtonUp(m_content->getAllocatedGeometry(), mousePos);
+			return m_content->onMouseButtonUp(m_content->getAllocatedGeometry(), mousePos, button);
 		}
 
 		return EventReply::unhandled();

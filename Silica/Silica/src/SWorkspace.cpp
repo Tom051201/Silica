@@ -62,10 +62,10 @@ namespace Silica {
 		return reply;
 	}
 
-	EventReply SWorkspace::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SWorkspace::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		for (int i = (int)m_floatingWindows.size() - 1; i >= 0; --i) {
 			auto win = m_floatingWindows[i];
-			if (win->onMouseButtonDown(win->getAllocatedGeometry(), mousePos).isHandled) {
+			if (win->onMouseButtonDown(win->getAllocatedGeometry(), mousePos, button).isHandled) {
 				m_floatingWindows.erase(m_floatingWindows.begin() + i);
 				m_floatingWindows.push_back(win);
 				return EventReply::handled();
@@ -73,19 +73,19 @@ namespace Silica {
 		}
 
 		// -- Fallback to DockSpace --
-		return m_dockSpace->onMouseButtonDown(m_dockSpace->getAllocatedGeometry(), mousePos);
+		return m_dockSpace->onMouseButtonDown(m_dockSpace->getAllocatedGeometry(), mousePos, button);
 	}
 
-	EventReply SWorkspace::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SWorkspace::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		EventReply reply = EventReply::unhandled();
 
 		for (int i = (int)m_floatingWindows.size() - 1; i >= 0; --i) {
-			if (m_floatingWindows[i]->onMouseButtonUp(m_floatingWindows[i]->getAllocatedGeometry(), mousePos).isHandled) {
+			if (m_floatingWindows[i]->onMouseButtonUp(m_floatingWindows[i]->getAllocatedGeometry(), mousePos, button).isHandled) {
 				reply = EventReply::handled();
 				break;
 			}
 		}
-		if (!reply.isHandled) reply = m_dockSpace->onMouseButtonUp(m_dockSpace->getAllocatedGeometry(), mousePos);
+		if (!reply.isHandled) reply = m_dockSpace->onMouseButtonUp(m_dockSpace->getAllocatedGeometry(), mousePos, button);
 		return reply;
 	}
 

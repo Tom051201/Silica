@@ -34,6 +34,9 @@ namespace Silica {
 
 		void addDrawCommand();
 
+		void addThickLine(const Vec2& p0, const Vec2& p1, float thickness, Color color);
+		void addBezierCurve(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float thickness, Color color);
+
 		Rect getCurrentClipRect() const;
 		void pushClipRect(const Rect& rect);
 		void popClipRect();
@@ -67,8 +70,8 @@ namespace Silica {
 		static void render(WidgetPtr rootWidget, float screenWidth, float screenHeight);
 
 		static void processMouseMove(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY);
-		static void processMouseClick(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY);
-		static void processMouseUp(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY);
+		static void processMouseDown(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY, MouseButton button);
+		static void processMouseUp(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY, MouseButton button);
 		static void processMouseWheel(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY, float scrollDelta);
 
 		static const DrawList* getDrawData() { return &s_drawList; }

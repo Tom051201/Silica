@@ -137,10 +137,20 @@ namespace Silica {
 			}
 
 			float4 PSMain(PS_INPUT input) : SV_Target {
-				float fontAlpha = fontTex.Sample(fontSampler, input.uv).r;
-
 				float4 finalColor = input.color;
-				finalColor.a *= fontAlpha; 
+
+				if (input.uv.x < -0.5f) {
+					float thickness = -input.uv.x;
+					float halfThickness = thickness * 0.5f;
+					float pixelDist = abs(input.uv.y - 0.5f) * thickness;
+					float edgeFade = 1.0f - smoothstep(halfThickness - 1.0f, halfThickness, pixelDist);
+
+					finalColor.a *= edgeFade;
+				} 
+				else {
+					float fontAlpha = fontTex.Sample(fontSampler, input.uv).r;
+					finalColor.a *= fontAlpha;
+				}
 
 				return finalColor;
 			}

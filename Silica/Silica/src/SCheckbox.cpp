@@ -36,7 +36,9 @@ namespace Silica {
 		}
 	}
 
-	EventReply SCheckBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SCheckBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (allocatedGeometry.contains(mousePos)) {
 			m_isChecked = !m_isChecked;
 

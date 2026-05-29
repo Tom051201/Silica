@@ -71,7 +71,16 @@ namespace Silica {
 		}
 	}
 
-	EventReply SSliderInt::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SSliderInt::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (m_isDragging) {
+			updateValueFromMouse(mousePos.x);
+			return EventReply::handled();
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SSliderInt::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (allocatedGeometry.contains(mousePos)) {
 			m_isDragging = true;
 			SWidget::setCapturedWidget(this);
@@ -82,16 +91,7 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SSliderInt::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		if (m_isDragging) {
-			updateValueFromMouse(mousePos.x);
-			return EventReply::handled();
-		}
-
-		return EventReply::unhandled();
-	}
-
-	EventReply SSliderInt::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SSliderInt::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_isDragging) {
 			m_isDragging = false;
 			SWidget::setCapturedWidget(nullptr);
@@ -114,4 +114,5 @@ namespace Silica {
 		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
 		drawList.commands.back().indexCount += 6;
 	}
+
 }

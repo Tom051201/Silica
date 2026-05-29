@@ -96,7 +96,7 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SWindow::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SWindow::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (getTitleBarRect().contains(mousePos)) {
 			m_isDragging = true;
 			m_dragClickOffset = Vec2(mousePos.x - m_position.x, mousePos.y - m_position.y);
@@ -105,14 +105,14 @@ namespace Silica {
 		}
 
 		if (m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
-			return m_content->onMouseButtonDown(m_content->getAllocatedGeometry(), mousePos);
+			return m_content->onMouseButtonDown(m_content->getAllocatedGeometry(), mousePos, button);
 		}
 
 		if (m_allocatedGeometry.contains(mousePos)) return EventReply::handled();
 		return EventReply::unhandled();
 	}
 
-	EventReply SWindow::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SWindow::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_isDragging) {
 			m_isDragging = false;
 			SWidget::setCapturedWidget(nullptr);
@@ -121,7 +121,7 @@ namespace Silica {
 		}
 
 		if (m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
-			return m_content->onMouseButtonUp(m_content->getAllocatedGeometry(), mousePos);
+			return m_content->onMouseButtonUp(m_content->getAllocatedGeometry(), mousePos, button);
 		}
 		return EventReply::unhandled();
 	}

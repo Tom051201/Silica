@@ -110,17 +110,43 @@ namespace Silica {
 				return true;
 			}
 			case WM_LBUTTONDOWN: {
-				float x = static_cast<float>(GET_X_LPARAM(lParam));
-				float y = static_cast<float>(GET_Y_LPARAM(lParam));
+				float mx = static_cast<float>(GET_X_LPARAM(lParam));
+				float my = static_cast<float>(GET_Y_LPARAM(lParam));
 
-				Renderer::processMouseClick(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y);
+				Renderer::processMouseDown(rootWidget, s_state.clientWidth, s_state.clientHeight, mx, my, MouseButton::Left);
 				return true;
 			}
 			case WM_LBUTTONUP: {
 				float x = static_cast<float>(GET_X_LPARAM(lParam));
 				float y = static_cast<float>(GET_Y_LPARAM(lParam));
 
-				Renderer::processMouseUp(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y);
+				Renderer::processMouseUp(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y, MouseButton::Left);
+				return true;
+			}
+			case WM_RBUTTONDOWN: {
+				float mx = static_cast<float>(GET_X_LPARAM(lParam));
+				float my = static_cast<float>(GET_Y_LPARAM(lParam));
+				Renderer::processMouseDown(rootWidget, s_state.clientWidth, s_state.clientHeight, mx, my, MouseButton::Right);
+				return true;
+			}
+			case WM_RBUTTONUP: {
+				float x = static_cast<float>(GET_X_LPARAM(lParam));
+				float y = static_cast<float>(GET_Y_LPARAM(lParam));
+
+				Renderer::processMouseUp(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y, MouseButton::Right);
+				return true;
+			}
+			case WM_MBUTTONDOWN: {
+				float mx = static_cast<float>(GET_X_LPARAM(lParam));
+				float my = static_cast<float>(GET_Y_LPARAM(lParam));
+				Renderer::processMouseDown(rootWidget, s_state.clientWidth, s_state.clientHeight, mx, my, MouseButton::Middle);
+				return true;
+			}
+			case WM_MBUTTONUP: {
+				float x = static_cast<float>(GET_X_LPARAM(lParam));
+				float y = static_cast<float>(GET_Y_LPARAM(lParam));
+
+				Renderer::processMouseUp(rootWidget, s_state.clientWidth, s_state.clientHeight, x, y, MouseButton::Middle);
 				return true;
 			}
 			case WM_CHAR: {

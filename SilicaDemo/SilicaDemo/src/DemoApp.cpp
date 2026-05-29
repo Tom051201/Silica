@@ -26,7 +26,9 @@
 #include "Silica/include/SSliderInt.h"
 #include "Silica/include/SCollapsingHeader.h"
 #include "Silica/include/SColorPicker.h"
-#include "SIlica/include/SMenuAnchor.h"
+#include "Silica/include/SMenuAnchor.h"
+#include "Silica/include/SNodeEditor.h"
+#include "Silica/include/InputCodes.h"
 
 class SBorderLayout : public Silica::SWidget {
 public:
@@ -58,13 +60,13 @@ public:
 		if (topBar->onMouseMove(topBar->getAllocatedGeometry(), m).isHandled) return Silica::EventReply::handled();
 		return contentArea->onMouseMove(contentArea->getAllocatedGeometry(), m);
 	}
-	Silica::EventReply onMouseButtonDown(const Silica::Geometry& geo, const Silica::Vec2& m) override {
-		if (topBar->onMouseButtonDown(topBar->getAllocatedGeometry(), m).isHandled) return Silica::EventReply::handled();
-		return contentArea->onMouseButtonDown(contentArea->getAllocatedGeometry(), m);
+	Silica::EventReply onMouseButtonDown(const Silica::Geometry& geo, const Silica::Vec2& m, Silica::MouseButton button) override {
+		if (topBar->onMouseButtonDown(topBar->getAllocatedGeometry(), m, button).isHandled) return Silica::EventReply::handled();
+		return contentArea->onMouseButtonDown(contentArea->getAllocatedGeometry(), m, button);
 	}
-	Silica::EventReply onMouseButtonUp(const Silica::Geometry& geo, const Silica::Vec2& m) override {
-		if (topBar->onMouseButtonUp(topBar->getAllocatedGeometry(), m).isHandled) return Silica::EventReply::handled();
-		return contentArea->onMouseButtonUp(contentArea->getAllocatedGeometry(), m);
+	Silica::EventReply onMouseButtonUp(const Silica::Geometry& geo, const Silica::Vec2& m, Silica::MouseButton button) override {
+		if (topBar->onMouseButtonUp(topBar->getAllocatedGeometry(), m, button).isHandled) return Silica::EventReply::handled();
+		return contentArea->onMouseButtonUp(contentArea->getAllocatedGeometry(), m, button);
 	}
 	Silica::EventReply onMouseWheel(const Silica::Geometry& geo, const Silica::Vec2& m, float s) override {
 		if (topBar->onMouseWheel(topBar->getAllocatedGeometry(), m, s).isHandled) return Silica::EventReply::handled();
@@ -372,12 +374,72 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 	auto contentBrowserContent = std::make_shared<SBorderLayout>();
 	contentBrowserContent->construct(cbToolbar, cbFilesArea);
 
+	// -- Node Editor --
+	auto nodeEditor = Silica::MakeWidget<Silica::SNodeEditor>({
+		.font = &m_font,
+		.onBackgroundContextClick = [this](Silica::Vec2 screenPos) -> Silica::WidgetPtr {
+			return Silica::MakeWidget<Silica::SBox>({
+				.backgroundColor = Silica::Color(50, 50, 50, 255),
+				.child = Silica::MakeWidget<Silica::SVerticalBox>({
+					.spacing = 2.0f,
+					.slots = {
+						{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Add Math Node", .font = &m_font})}) },
+						{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Add Float Node", .font = &m_font})}) },
+						{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Cancel", .font = &m_font})}) }
+					}
+				})
+			});
+		},
+
+		// Setup the Node Right-Click Menu
+		.onNodeContextClick = [this](Silica::NodeID nodeID, Silica::Vec2 screenPos) -> Silica::WidgetPtr {
+			return Silica::MakeWidget<Silica::SBox>({
+				.backgroundColor = Silica::Color(50, 50, 50, 255),
+				.child = Silica::MakeWidget<Silica::SVerticalBox>({
+					.slots = {
+						{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Delete Node", .font = &m_font})}) },
+						{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Duplicate", .font = &m_font})}) }
+					}
+				})
+			});
+		}
+	});
+
+	// Add a Float Input Node
+	nodeEditor->addNode({
+		.id = 1,
+		.title = "Delta Time",
+		.headerColor = Silica::Color(40, 150, 80, 255), // Green
+		.position = { 50, 100 },
+		.size = { 120, 80 },
+		.inputs = {},
+		.outputs = { { 101, "Float", Silica::PinType::Output, Silica::Color(150, 255, 150, 255) } }
+		});
+
+	// Add a Math Node
+	nodeEditor->addNode({
+		.id = 2,
+		.title = "Multiply",
+		.headerColor = Silica::Color(80, 80, 200, 255), // Blue
+		.position = { 300, 80 },
+		.size = { 120, 100 },
+		.inputs = {
+			{ 201, "A", Silica::PinType::Input, Silica::Color(150, 255, 150, 255) },
+			{ 202, "B", Silica::PinType::Input, Silica::Color(150, 255, 150, 255) }
+		},
+		.outputs = { { 203, "Result", Silica::PinType::Output, Silica::Color(150, 255, 150, 255) } }
+		});
+
+	// Pre-connect them (Output Pin 101 to Input Pin 201)
+	nodeEditor->addLink(1, 101, 201, Silica::Color(150, 255, 150, 255));
+
+
 	// -- Docking --
 	auto workspace = Silica::MakeWidget<Silica::SWorkspace>({
 		.initialTitle = "Viewport",
 		.initialContent = viewportContent,
 		.font = &m_font
-	});
+		});
 
 	auto dock = workspace->getDockSpace();
 	auto root = dock->getRootNode();
@@ -390,6 +452,11 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 
 	// root->child[1]->child[0] is the Viewport. Split Bottom (70% remains top, 30% bottom) -> Content Browser
 	dock->splitNode(root->child[1]->child[0], Silica::SplitDirection::Vertical, 0.7f, "Content Browser", contentBrowserContent, false);
+
+	// --- NEW: Split the remaining Viewport in half to show the Node Editor next to it! ---
+	// root->child[1]->child[0]->child[0] is the remaining Viewport tab
+	dock->splitNode(root->child[1]->child[0]->child[0], Silica::SplitDirection::Horizontal, 0.5f, "Blueprint Graph", nodeEditor, false);
+
 
 	// 7. Assemble Application Root
 	auto appRoot = std::make_shared<SBorderLayout>();

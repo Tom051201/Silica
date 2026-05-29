@@ -68,7 +68,9 @@ namespace Silica {
 		return m_isHovered ? EventReply::handled() : EventReply::unhandled();
 	}
 
-	EventReply SButton::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SButton::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (allocatedGeometry.contains(mousePos)) {
 			m_isPressed = true;
 			return EventReply::handled();
@@ -76,7 +78,9 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SButton::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SButton::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (m_isPressed && allocatedGeometry.contains(mousePos)) {
 			m_isPressed = false;
 			if (m_onClick) {

@@ -50,7 +50,9 @@ namespace Silica {
 		return m_isHovered ? EventReply::handled() : EventReply::unhandled();
 	}
 
-	EventReply SImageButton::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SImageButton::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (allocatedGeometry.contains(mousePos)) {
 			m_isPressed = true;
 			SWidget::setCapturedWidget(this);
@@ -59,7 +61,9 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SImageButton::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SImageButton::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (m_isPressed || SWidget::getCapturedWidget() == this) {
 			m_isPressed = false;
 			SWidget::setCapturedWidget(nullptr);

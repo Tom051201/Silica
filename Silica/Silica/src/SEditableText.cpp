@@ -99,7 +99,7 @@ namespace Silica {
 		outDrawList.popClipRect();
 	}
 
-	EventReply SEditableText::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SEditableText::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (allocatedGeometry.contains(mousePos)) {
 			// -- Force Cursor To Stay As I-Beam --
 			Platform::setCursor(Platform::Cursor::TextInput);

@@ -22,6 +22,88 @@ namespace Silica {
 		commands.push_back(cmd);
 	}
 
+	void DrawList::addThickLine(const Vec2& p0, const Vec2& p1, float thickness, Color color) {
+		Vec2 dir = { p1.x - p0.x, p1.y - p0.y };
+		float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+		if (len < 0.001f) return;
+		dir.x /= len; dir.y /= len;
+
+		// Perpendicular normal vector
+		Vec2 normal = { -dir.y, dir.x };
+		Vec2 t = { normal.x * (thickness * 0.5f), normal.y * (thickness * 0.5f) };
+
+		uint32_t startIndex = (uint32_t)vertices.size();
+		vertices.push_back({ {p0.x - t.x, p0.y - t.y}, {0.0f, 0.0f}, color });
+		vertices.push_back({ {p0.x + t.x, p0.y + t.y}, {0.0f, 0.0f}, color });
+		vertices.push_back({ {p1.x + t.x, p1.y + t.y}, {0.0f, 0.0f}, color });
+		vertices.push_back({ {p1.x - t.x, p1.y - t.y}, {0.0f, 0.0f}, color });
+
+		indices.push_back(startIndex + 0);
+		indices.push_back(startIndex + 1);
+		indices.push_back(startIndex + 2);
+		indices.push_back(startIndex + 0);
+		indices.push_back(startIndex + 2);
+		indices.push_back(startIndex + 3);
+
+		if (commands.empty()) commands.push_back({ 0, 0, 0 });
+		commands.back().indexCount += 6;
+	}
+
+	void DrawList::addBezierCurve(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float thickness, Color color) {
+		int segments = 40;
+		std::vector<Vec2> points;
+		points.reserve(segments + 1);
+
+		// -- Calculate All The Points Along The Curve --
+		for (int i = 0; i <= segments; ++i) {
+			float t = (float)i / (float)segments;
+			float u = 1.0f - t;
+			float tt = t * t;
+			float uu = u * u;
+			float uuu = uu * u;
+			float ttt = tt * t;
+
+			points.push_back({
+				uuu * p0.x + 3 * uu * t * p1.x + 3 * u * tt * p2.x + ttt * p3.x,
+				uuu * p0.y + 3 * uu * t * p1.y + 3 * u * tt * p2.y + ttt * p3.y
+			});
+		}
+
+		uint32_t startIndex = (uint32_t)vertices.size();
+
+		// -- Generate A Continuous Ribbon Of Vertices --
+		for (size_t i = 0; i < points.size(); ++i) {
+			Vec2 dir;
+			if (i == 0) {
+				dir = { points[1].x - points[0].x, points[1].y - points[0].y };
+			}
+			else if (i == points.size() - 1) {
+				dir = { points[i].x - points[i - 1].x, points[i].y - points[i - 1].y };
+			}
+			else {
+				dir = { points[i + 1].x - points[i - 1].x, points[i + 1].y - points[i - 1].y };
+			}
+
+			float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
+			if (len > 0.001f) { dir.x /= len; dir.y /= len; }
+
+			Vec2 normal = { -dir.y, dir.x };
+
+			vertices.push_back({ {points[i].x + normal.x * (thickness * 0.5f), points[i].y + normal.y * (thickness * 0.5f)}, {-thickness, 0.0f}, color });
+			vertices.push_back({ {points[i].x - normal.x * (thickness * 0.5f), points[i].y - normal.y * (thickness * 0.5f)}, {-thickness, 1.0f}, color });
+		}
+
+		// -- Connect Them All With Indices --
+		for (int i = 0; i < segments; ++i) {
+			uint32_t base = startIndex + (i * 2);
+			indices.push_back(base + 0); indices.push_back(base + 1); indices.push_back(base + 2);
+			indices.push_back(base + 1); indices.push_back(base + 3); indices.push_back(base + 2);
+		}
+
+		if (commands.empty()) commands.push_back({ 0, 0, 0 });
+		commands.back().indexCount += segments * 6;
+	}
+
 	Rect DrawList::getCurrentClipRect() const {
 		if (clipRectStack.empty()) return Rect(0, 0, 8192, 8192);
 		return clipRectStack.back();
@@ -121,13 +203,13 @@ namespace Silica {
 		}
 	}
 
-	void Renderer::processMouseClick(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY) {
+	void Renderer::processMouseDown(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY, MouseButton button) {
 		SWidget::setFocusedWidget(nullptr);
 
 		bool hitPopup = false;
 		for (auto it = s_popups.rbegin(); it != s_popups.rend(); ++it) {
 			if (it->geometry.contains({ mouseX, mouseY })) {
-				it->widget->onMouseButtonDown(it->geometry, { mouseX, mouseY });
+				it->widget->onMouseButtonDown(it->geometry, { mouseX, mouseY }, button);
 				hitPopup = true;
 				break;
 			}
@@ -141,20 +223,20 @@ namespace Silica {
 
 		if (!hitPopup && rootWidget) {
 			Geometry rootGeo = { {0, 0}, {screenWidth, screenHeight} };
-			rootWidget->onMouseButtonDown(rootGeo, { mouseX, mouseY });
+			rootWidget->onMouseButtonDown(rootGeo, { mouseX, mouseY }, button);
 		}
 	}
 
-	void Renderer::processMouseUp(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY) {
+	void Renderer::processMouseUp(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY, MouseButton button) {
 		if (SWidget::getCapturedWidget()) {
 			SWidget* captured = SWidget::getCapturedWidget();
-			captured->onMouseButtonUp(captured->getAllocatedGeometry(), { mouseX, mouseY });
+			captured->onMouseButtonUp(captured->getAllocatedGeometry(), { mouseX, mouseY }, button);
 			return;
 		}
 
 		for (auto it = s_popups.rbegin(); it != s_popups.rend(); ++it) {
 			if (it->geometry.contains({ mouseX, mouseY })) {
-				EventReply reply = it->widget->onMouseButtonUp(it->geometry, { mouseX, mouseY });
+				EventReply reply = it->widget->onMouseButtonUp(it->geometry, { mouseX, mouseY }, button);
 				if (reply.isHandled) {
 					if (it->closeCallback) it->closeCallback();
 					return;
@@ -164,7 +246,7 @@ namespace Silica {
 
 		if (rootWidget) {
 			Geometry rootGeo = { {0, 0}, {screenWidth, screenHeight} };
-			rootWidget->onMouseButtonUp(rootGeo, { mouseX, mouseY });
+			rootWidget->onMouseButtonUp(rootGeo, { mouseX, mouseY }, button);
 		}
 	}
 

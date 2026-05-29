@@ -83,10 +83,10 @@ namespace Silica {
 		return finalReply;
 	}
 
-	EventReply SHorizontalBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SHorizontalBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		for (const Slot& slot : m_slots) {
 			if (slot.child && slot.child->getAllocatedGeometry().contains(mousePos)) {
-				EventReply reply = slot.child->onMouseButtonDown(slot.child->getAllocatedGeometry(), mousePos);
+				EventReply reply = slot.child->onMouseButtonDown(slot.child->getAllocatedGeometry(), mousePos, button);
 				if (reply.isHandled) return reply;
 			}
 		}
@@ -94,10 +94,10 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SHorizontalBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SHorizontalBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		for (const Slot& slot : m_slots) {
 			if (slot.child && slot.child->getAllocatedGeometry().contains(mousePos)) {
-				EventReply reply = slot.child->onMouseButtonUp(slot.child->getAllocatedGeometry(), mousePos);
+				EventReply reply = slot.child->onMouseButtonUp(slot.child->getAllocatedGeometry(), mousePos, button);
 				if (reply.isHandled) return reply;
 			}
 		}

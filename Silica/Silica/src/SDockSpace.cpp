@@ -120,7 +120,7 @@ namespace Silica {
 		return routeMove(m_rootNode);
 	}
 
-	EventReply SDockSpace::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SDockSpace::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		auto hitTab = hitTestTab(m_rootNode, mousePos);
 		if (hitTab.first) {
 			m_pressedTabNode = hitTab.first;
@@ -142,7 +142,7 @@ namespace Silica {
 			if (!node) return EventReply::unhandled();
 			if (node->splitDirection == SplitDirection::None) {
 				if (!node->tabs.empty() && node->activeTab < node->tabs.size() && node->tabs[node->activeTab].content && node->tabs[node->activeTab].content->getAllocatedGeometry().contains(mousePos)) {
-					return node->tabs[node->activeTab].content->onMouseButtonDown(node->tabs[node->activeTab].content->getAllocatedGeometry(), mousePos);
+					return node->tabs[node->activeTab].content->onMouseButtonDown(node->tabs[node->activeTab].content->getAllocatedGeometry(), mousePos, button);
 				}
 			}
 			else {
@@ -156,7 +156,7 @@ namespace Silica {
 		return routeDown(m_rootNode);
 	}
 
-	EventReply SDockSpace::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SDockSpace::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_pressedTabNode) {
 			m_pressedTabNode->activeTab = m_pressedTabIndex;
 			m_pressedTabNode = nullptr;
@@ -174,7 +174,7 @@ namespace Silica {
 			if (!node) return EventReply::unhandled();
 			if (node->splitDirection == SplitDirection::None) {
 				if (!node->tabs.empty() && node->activeTab < node->tabs.size() && node->tabs[node->activeTab].content && node->tabs[node->activeTab].content->getAllocatedGeometry().contains(mousePos)) {
-					return node->tabs[node->activeTab].content->onMouseButtonUp(node->tabs[node->activeTab].content->getAllocatedGeometry(), mousePos);
+					return node->tabs[node->activeTab].content->onMouseButtonUp(node->tabs[node->activeTab].content->getAllocatedGeometry(), mousePos, button);
 				}
 			}
 			else {

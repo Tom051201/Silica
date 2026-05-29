@@ -96,7 +96,7 @@ namespace Silica {
 		return isHoveringVisually ? EventReply::handled() : EventReply::unhandled();
 	}
 
-	EventReply SMenuAnchor::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SMenuAnchor::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (allocatedGeometry.contains(mousePos)) {
 			if (!m_openOnHover) m_isOpen = !m_isOpen;
 			return EventReply::handled();
@@ -105,9 +105,9 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	EventReply SMenuAnchor::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	EventReply SMenuAnchor::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_anchorContent && allocatedGeometry.contains(mousePos)) {
-			return m_anchorContent->onMouseButtonUp(m_anchorContent->getAllocatedGeometry(), mousePos);
+			return m_anchorContent->onMouseButtonUp(m_anchorContent->getAllocatedGeometry(), mousePos, button);
 		}
 
 		return EventReply::unhandled();

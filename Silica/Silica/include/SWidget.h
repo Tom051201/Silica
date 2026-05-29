@@ -5,7 +5,7 @@
 #include <functional>
 
 #include "Geometry.h"
-#include "KeyCodes.h"
+#include "InputCodes.h"
 
 namespace Silica {
 
@@ -35,8 +35,8 @@ namespace Silica {
 		virtual void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const = 0;
 
 		virtual EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
-		virtual EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
-		virtual EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos) { return EventReply::unhandled(); }
+		virtual EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) { return EventReply::unhandled(); }
+		virtual EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) { return EventReply::unhandled(); }
 		virtual EventReply onChar(char c) { return EventReply::unhandled(); }
 		virtual EventReply onKeyDown(Key key) { return EventReply::unhandled(); }
 		virtual EventReply onKeyUp(Key key) { return EventReply::unhandled(); }
