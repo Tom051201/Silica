@@ -121,20 +121,23 @@ namespace Silica {
 	}
 
 	EventReply SDockSpace::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		auto hitTab = hitTestTab(m_rootNode, mousePos);
-		if (hitTab.first) {
-			m_pressedTabNode = hitTab.first;
-			m_pressedTabIndex = hitTab.second;
-			m_pressedMousePos = mousePos;
-			SWidget::setCapturedWidget(this);
-			return EventReply::handled();
-		}
+		if (button == MouseButton::Left) {
+			// -- Check if Hit a Tab --
+			auto hitTab = hitTestTab(m_rootNode, mousePos);
+			if (hitTab.first) {
+				m_pressedTabNode = hitTab.first;
+				m_pressedTabIndex = hitTab.second;
+				m_pressedMousePos = mousePos;
+				SWidget::setCapturedWidget(this);
+				return EventReply::handled();
+			}
 
-		// -- Check if Grabbed a Splitter --
-		m_draggingNode = hitTestSplitter(m_rootNode, mousePos);
-		if (m_draggingNode) {
-			SWidget::setCapturedWidget(this);
-			return EventReply::handled();
+			// -- Check if Grabbed a Splitter --
+			m_draggingNode = hitTestSplitter(m_rootNode, mousePos);
+			if (m_draggingNode) {
+				SWidget::setCapturedWidget(this);
+				return EventReply::handled();
+			}
 		}
 
 		// -- Route The Click to UI Widgets --
@@ -157,19 +160,24 @@ namespace Silica {
 	}
 
 	EventReply SDockSpace::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		if (m_pressedTabNode) {
-			m_pressedTabNode->activeTab = m_pressedTabIndex;
-			m_pressedTabNode = nullptr;
-			SWidget::setCapturedWidget(nullptr);
-			return EventReply::handled();
+		if (button == MouseButton::Left) {
+			// -- Tab Hit --
+			if (m_pressedTabNode) {
+				m_pressedTabNode->activeTab = m_pressedTabIndex;
+				m_pressedTabNode = nullptr;
+				SWidget::setCapturedWidget(nullptr);
+				return EventReply::handled();
+			}
+
+			// -- Dragging Node --
+			if (m_draggingNode) {
+				m_draggingNode = nullptr;
+				SWidget::setCapturedWidget(nullptr);
+				return EventReply::handled();
+			}
 		}
 
-		if (m_draggingNode) {
-			m_draggingNode = nullptr;
-			SWidget::setCapturedWidget(nullptr);
-			return EventReply::handled();
-		}
-
+		// -- Route The Click to UI Widgets --
 		std::function<EventReply(DockNodePtr)> routeUp = [&](DockNodePtr node) -> EventReply {
 			if (!node) return EventReply::unhandled();
 			if (node->splitDirection == SplitDirection::None) {
@@ -189,6 +197,7 @@ namespace Silica {
 	}
 
 	EventReply SDockSpace::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
+		// -- Rout The Wheel Input to UI Widgets --
 		std::function<EventReply(DockNodePtr)> routeWheel = [&](DockNodePtr node) -> EventReply {
 			if (!node) return EventReply::unhandled();
 			if (node->splitDirection == SplitDirection::None) {
@@ -203,6 +212,7 @@ namespace Silica {
 			}
 			return EventReply::unhandled();
 		};
+
 		return routeWheel(m_rootNode);
 	}
 

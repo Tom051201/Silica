@@ -54,6 +54,40 @@ namespace Silica {
 		}
 	}
 
+	EventReply SSliderInt::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (m_isDragging) {
+			updateValueFromMouse(mousePos.x);
+			return EventReply::handled();
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SSliderInt::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
+		if (allocatedGeometry.contains(mousePos)) {
+			m_isDragging = true;
+			SWidget::setCapturedWidget(this);
+			updateValueFromMouse(mousePos.x);
+			return EventReply::handled();
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SSliderInt::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
+		if (m_isDragging) {
+			m_isDragging = false;
+			SWidget::setCapturedWidget(nullptr);
+			return EventReply::handled();
+		}
+
+		return EventReply::unhandled();
+	}
+
 	void SSliderInt::updateValueFromMouse(float mouseX) {
 		if (m_max <= m_min) return;
 
@@ -69,36 +103,6 @@ namespace Silica {
 				m_onValueChanged(m_value);
 			}
 		}
-	}
-
-	EventReply SSliderInt::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		if (m_isDragging) {
-			updateValueFromMouse(mousePos.x);
-			return EventReply::handled();
-		}
-
-		return EventReply::unhandled();
-	}
-
-	EventReply SSliderInt::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		if (allocatedGeometry.contains(mousePos)) {
-			m_isDragging = true;
-			SWidget::setCapturedWidget(this);
-			updateValueFromMouse(mousePos.x);
-			return EventReply::handled();
-		}
-
-		return EventReply::unhandled();
-	}
-
-	EventReply SSliderInt::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		if (m_isDragging) {
-			m_isDragging = false;
-			SWidget::setCapturedWidget(nullptr);
-			return EventReply::handled();
-		}
-
-		return EventReply::unhandled();
 	}
 
 	void SSliderInt::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {

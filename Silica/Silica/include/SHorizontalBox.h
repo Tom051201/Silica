@@ -25,7 +25,7 @@ namespace Silica {
 
 	private:
 
-		float m_spacing;
+		float m_spacing = 0.0f;
 		std::vector<Slot> m_slots;
 
 	};

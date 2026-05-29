@@ -38,6 +38,7 @@ namespace Silica {
 		if (m_child && allocatedGeometry.contains(mousePos)) {
 			return m_child->onMouseMove(m_child->getAllocatedGeometry(), mousePos);
 		}
+
 		return EventReply::unhandled();
 	}
 
@@ -45,6 +46,7 @@ namespace Silica {
 		if (m_child && allocatedGeometry.contains(mousePos)) {
 			return m_child->onMouseButtonDown(m_child->getAllocatedGeometry(), mousePos, button);
 		}
+
 		return EventReply::unhandled();
 	}
 
@@ -52,6 +54,7 @@ namespace Silica {
 		if (m_child && allocatedGeometry.contains(mousePos)) {
 			return m_child->onMouseButtonUp(m_child->getAllocatedGeometry(), mousePos, button);
 		}
+
 		return EventReply::unhandled();
 	}
 }

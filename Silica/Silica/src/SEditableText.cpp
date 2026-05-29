@@ -99,7 +99,17 @@ namespace Silica {
 		outDrawList.popClipRect();
 	}
 
+	EventReply SEditableText::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (allocatedGeometry.contains(mousePos)) {
+			Platform::setCursor(Platform::Cursor::TextInput);
+		}
+
+		return EventReply::unhandled();
+	}
+
 	EventReply SEditableText::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (allocatedGeometry.contains(mousePos)) {
 			// -- Force Cursor To Stay As I-Beam --
 			Platform::setCursor(Platform::Cursor::TextInput);
@@ -142,14 +152,6 @@ namespace Silica {
 		else if (SWidget::getFocusedWidget() == this) {
 			if (m_onTextCommitted) m_onTextCommitted(m_text);
 			SWidget::setFocusedWidget(nullptr);
-		}
-
-		return EventReply::unhandled();
-	}
-
-	EventReply SEditableText::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		if (allocatedGeometry.contains(mousePos)) {
-			Platform::setCursor(Platform::Cursor::TextInput);
 		}
 
 		return EventReply::unhandled();

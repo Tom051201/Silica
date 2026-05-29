@@ -5,6 +5,7 @@
 namespace Silica {
 
 	struct Theme {
+
 		// -- TEXT --
 		Color textMain = Color::white();
 		Color textDim = Color(150, 150, 150);

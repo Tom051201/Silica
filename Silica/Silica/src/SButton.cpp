@@ -61,8 +61,7 @@ namespace Silica {
 		}
 
 		if (m_child) {
-			// We don't bother recalculating child geo here for brevity,
-			// but in a full system you would pass it down just like SBox does.
+			// TODO pass to children
 		}
 
 		return m_isHovered ? EventReply::handled() : EventReply::unhandled();

@@ -1,6 +1,14 @@
 #include "Renderer.h"
 
+#include "SWidget.h"
+
 namespace Silica {
+
+	// ----- SWidget Implementation -----
+	SWidget* SWidget::s_focusedWidget = nullptr;
+	SWidget* SWidget::s_capturedWidget = nullptr;
+
+
 
 	DrawList Renderer::s_drawList;
 	Vec2 Renderer::s_mousePosition;

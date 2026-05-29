@@ -9,6 +9,7 @@ namespace Silica {
 
 	class SScrollBox : public SWidget {
 	public:
+
 		struct Args {
 			WidgetPtr child = nullptr;
 			float scrollSpeed = 40.0f;

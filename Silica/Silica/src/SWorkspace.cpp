@@ -27,13 +27,17 @@ namespace Silica {
 	void SWorkspace::computeDesiredSize() {
 		m_desiredSize = Vec2::zero();
 		m_dockSpace->computeDesiredSize();
-		for (auto& win : m_floatingWindows) win->computeDesiredSize();
+		for (auto& win : m_floatingWindows) {
+			win->computeDesiredSize();
+		}
 	}
 
 	void SWorkspace::arrangeChildren(const Geometry & allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 		m_dockSpace->arrangeChildren(allocatedGeometry);
-		for (auto& win : m_floatingWindows) win->arrangeChildren(allocatedGeometry);
+		for (auto& win : m_floatingWindows) {
+			win->arrangeChildren(allocatedGeometry);
+		}
 	}
 
 	void SWorkspace::onDraw(DrawList & outDrawList, const Geometry & allocatedGeometry) const {

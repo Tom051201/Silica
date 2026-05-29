@@ -97,6 +97,8 @@ namespace Silica {
 	}
 
 	EventReply SMenuAnchor::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (allocatedGeometry.contains(mousePos)) {
 			if (!m_openOnHover) m_isOpen = !m_isOpen;
 			return EventReply::handled();

@@ -11,6 +11,7 @@ namespace Silica {
 
 	class STextBlock : public SWidget {
 	public:
+
 		struct Args {
 			std::string text = "";
 			std::optional<Color> color;

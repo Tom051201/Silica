@@ -23,7 +23,6 @@
 #include "Silica/include/SSliderInt.h"
 #include "Silica/include/SCheckbox.h"
 #include "Silica/include/SWorkspace.h"
-#include "Silica/include/SSliderInt.h"
 #include "Silica/include/SCollapsingHeader.h"
 #include "Silica/include/SColorPicker.h"
 #include "Silica/include/SMenuAnchor.h"
@@ -85,13 +84,13 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 
 	// -- Enable Debug Layer --
 	UINT dxgiFactoryFlags = 0;
-	#if defined SILICA_DEBUG
+#if defined SILICA_DEBUG
 	Microsoft::WRL::ComPtr<ID3D12Debug> debugController;
 	if (SUCCEEDED(D3D12GetDebugInterface(IID_PPV_ARGS(&debugController)))) {
 		debugController->EnableDebugLayer();
 		dxgiFactoryFlags |= DXGI_CREATE_FACTORY_DEBUG;
 	}
-	#endif
+#endif
 
 	ThrowIfFailed(CreateDXGIFactory2(dxgiFactoryFlags, IID_PPV_ARGS(&m_factory)));
 
@@ -179,7 +178,6 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 	// -- Build UI Tree --
 
 	// -- Menu Bar --
-	// 1. Create a cascading sub-menu for "Export" (Opens on Hover, to the Right)
 	auto exportSubMenu = Silica::MakeWidget<Silica::SMenuAnchor>({
 		.openOnHover = true,
 		.openToRight = true,
@@ -196,9 +194,8 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 				}
 			})
 		})
-	});
+		});
 
-	// 2. Create the main "File" menu (Opens on Click, Downwards)
 	auto fileMenu = Silica::MakeWidget<Silica::SMenuAnchor>({
 		.openOnHover = false,
 		.openToRight = false,
@@ -211,33 +208,30 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "New Scene", .font = &m_font})}) },
 					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Open Scene...", .font = &m_font})}) },
 					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Save", .font = &m_font})}) },
-					// Separator Line
 					{ {5, 2}, Silica::MakeWidget<Silica::SBox>({.backgroundColor = Silica::Color(60,60,60,255), .child = Silica::MakeWidget<Silica::STextBlock>({.text = "", .font = &m_font})}) },
-					// Inject the nested sub-menu here
 					{ {5, 2}, exportSubMenu },
 					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Exit", .font = &m_font})}) }
 				}
 			})
 		})
-	});
+		});
 
-	// 3. Assemble the Main Menu Bar
 	auto mainMenuBar = Silica::MakeWidget<Silica::SBox>({
 		.backgroundColor = Silica::Color(40, 40, 40, 255),
 		.child = Silica::MakeWidget<Silica::SHorizontalBox>({
 			.slots = {
 				{ {15, 6}, Silica::MakeWidget<Silica::STextBlock>({.text = "AXION STUDIO", .font = &m_font}) },
-				{ {2, 2}, fileMenu }, // <-- Inject the fully assembled File Menu!
+				{ {2, 2}, fileMenu },
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Edit", .font = &m_font})}) },
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "View", .font = &m_font})}) },
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Project", .font = &m_font})}) },
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Help", .font = &m_font})}) }
 			}
 		})
-	});
+		});
 
 	// -- Hierarchy --
-	auto hierarchyContent = Silica::MakeWidget<Silica::SScrollBox>({ // <-- WRAP IN SCROLL BOX
+	auto hierarchyContent = Silica::MakeWidget<Silica::SScrollBox>({
 		.child = Silica::MakeWidget<Silica::SVerticalBox>({
 			.spacing = 2.0f,
 			.slots = {
@@ -248,71 +242,69 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 				{ {20, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Terrain Setup", .font = &m_font})}) }
 			}
 		})
-	});
+		});
 
 	// -- Properties --
 	auto propertiesContent = Silica::MakeWidget<Silica::SVerticalBox>({
 		.spacing = 4.0f,
 		.slots = {
-			{ {5, 5}, Silica::MakeWidget<Silica::STextBlock>({.text = "Entity: Player Model", .font = &m_font}) },
-
-			// --- Transform Section ---
-			{ {0, 0}, Silica::MakeWidget<Silica::SCollapsingHeader>({
-				.title = "Transform",
-				.initiallyOpen = true,
-				.font = &m_font,
-				.content = Silica::MakeWidget<Silica::SVerticalBox>({
-					.spacing = 2.0f,
-					.slots = {
-						{ {10, 2}, Silica::MakeWidget<Silica::STextBlock>({.text = "Position: X: 0.0  Y: 10.0  Z: 5.0", .font = &m_font}) },
-						{ {10, 2}, Silica::MakeWidget<Silica::STextBlock>({.text = "Rotation: X: 0.0  Y: 0.0  Z: 0.0", .font = &m_font}) },
-						{ {10, 2}, Silica::MakeWidget<Silica::STextBlock>({.text = "Scale:    X: 1.0  Y: 1.0  Z: 1.0", .font = &m_font}) }
-					}
-				})
-			}) },
-
-			// --- Camera Settings Section (Featuring the Float Slider) ---
-			{ {0, 0}, Silica::MakeWidget<Silica::SBox>({.backgroundColor = Silica::Color(55,55,55,255), .child = Silica::MakeWidget<Silica::STextBlock>({.text = "  Camera Settings", .font = &m_font})}) },
-			{ {10, 2}, Silica::MakeWidget<Silica::SHorizontalBox>({
-				.spacing = 15.0f,
+			// SHOWCASING SCHECKBOX AND SEDITABLETEXT
+			{ {5, 5}, Silica::MakeWidget<Silica::SHorizontalBox>({
+				.spacing = 10.0f,
 				.slots = {
-					// Label
-					{ {0, 0}, Silica::MakeWidget<Silica::STextBlock>({.text = "Field of View", .font = &m_font}) },
-					// Float Slider
-					{ {0, 0}, Silica::MakeWidget<Silica::SSliderFloat>({
-						.initialValue = 90.0f,
-						.minValue = 30.0f,
-						.maxValue = 120.0f,
-						.onValueChanged = [](float val) { /* Link to your 3D Camera FOV here */ }
-					})
-				},
-				{ {0, 0}, Silica::MakeWidget<Silica::SColorPicker>({
-	.initialColor = Silica::Color(255, 128, 0, 255), // Start Orange
-	.onColorChanged = [](Silica::Color c) {
-						// Apply this color to your 3D Mesh Material!
-					}
-				}) }
+					{ {0,0}, Silica::MakeWidget<Silica::STextBlock>({.text = "Entity:", .font = &m_font}) },
+					{ {0,0}, Silica::MakeWidget<Silica::SEditableText>({.hintText = "Player Model", .font = &m_font}) },
+					{ {0,0}, Silica::MakeWidget<Silica::SCheckBox>({.initialCheck = true}) }, // The Box
+					{ {0,0}, Silica::MakeWidget<Silica::STextBlock>({.text = "Visible", .font = &m_font}) } // The Label
 				}
 			}) },
 
-		// --- Mesh Section (Featuring the Int Slider) ---
-		{ {0, 0}, Silica::MakeWidget<Silica::SBox>({.backgroundColor = Silica::Color(55,55,55,255), .child = Silica::MakeWidget<Silica::STextBlock>({.text = "  Mesh Settings", .font = &m_font})}) },
-		{ {10, 2}, Silica::MakeWidget<Silica::SHorizontalBox>({
-			.spacing = 15.0f,
-			.slots = {
-				// Label
-				{ {0, 0}, Silica::MakeWidget<Silica::STextBlock>({.text = "Subdivisions ", .font = &m_font}) },
-				// Int Slider
-				{ {0, 0}, Silica::MakeWidget<Silica::SSliderInt>({
-					.initialValue = 2,
-					.minValue = 1,
-					.maxValue = 8,
-					.onValueChanged = [](int val) { /* Link to your mesh generation logic here */ }
+				// --- Transform Section ---
+				{ {0, 0}, Silica::MakeWidget<Silica::SCollapsingHeader>({
+					.title = "Transform",
+					.initiallyOpen = true,
+					.font = &m_font,
+					.content = Silica::MakeWidget<Silica::SVerticalBox>({
+						.spacing = 2.0f,
+						.slots = {
+							{ {10, 2}, Silica::MakeWidget<Silica::STextBlock>({.text = "Position: X: 0.0  Y: 10.0  Z: 5.0", .font = &m_font}) },
+							{ {10, 2}, Silica::MakeWidget<Silica::STextBlock>({.text = "Rotation: X: 0.0  Y: 0.0  Z: 0.0", .font = &m_font}) },
+							{ {10, 2}, Silica::MakeWidget<Silica::STextBlock>({.text = "Scale:    X: 1.0  Y: 1.0  Z: 1.0", .font = &m_font}) }
+						}
+					})
+				}) },
+
+				// --- Camera Settings Section ---
+				{ {0, 0}, Silica::MakeWidget<Silica::SBox>({.backgroundColor = Silica::Color(55,55,55,255), .child = Silica::MakeWidget<Silica::STextBlock>({.text = "  Camera Settings", .font = &m_font})}) },
+				{ {10, 2}, Silica::MakeWidget<Silica::SHorizontalBox>({
+					.spacing = 15.0f,
+					.slots = {
+						{ {0, 0}, Silica::MakeWidget<Silica::STextBlock>({.text = "Field of View", .font = &m_font}) },
+						{ {0, 0}, Silica::MakeWidget<Silica::SSliderFloat>({
+							.initialValue = 90.0f,
+							.minValue = 30.0f,
+							.maxValue = 120.0f
+						})},
+						{ {0, 0}, Silica::MakeWidget<Silica::SColorPicker>({
+							.initialColor = Silica::Color(255, 128, 0, 255)
+						})}
+					}
+				}) },
+
+				// --- Mesh Section ---
+				{ {0, 0}, Silica::MakeWidget<Silica::SBox>({.backgroundColor = Silica::Color(55,55,55,255), .child = Silica::MakeWidget<Silica::STextBlock>({.text = "  Mesh Settings", .font = &m_font})}) },
+				{ {10, 2}, Silica::MakeWidget<Silica::SHorizontalBox>({
+					.spacing = 15.0f,
+					.slots = {
+						{ {0, 0}, Silica::MakeWidget<Silica::STextBlock>({.text = "Subdivisions ", .font = &m_font}) },
+						{ {0, 0}, Silica::MakeWidget<Silica::SSliderInt>({
+							.initialValue = 2,
+							.minValue = 1,
+							.maxValue = 8
+						}) }
+					}
 				}) }
 			}
-		}) }
-
-		}
 		});
 
 	// -- Editor Viewport --
@@ -327,11 +319,11 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 				{ {15, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Camera: 3D", .font = &m_font})}) }
 			}
 		})
-	});
+		});
 	auto vpRenderArea = Silica::MakeWidget<Silica::SBox>({
 		.backgroundColor = Silica::Color(15, 15, 15, 255),
 		.child = Silica::MakeWidget<Silica::STextBlock>({.text = "\n\n   [ 3D Render Image Placeholder ]", .font = &m_font})
-	});
+		});
 	auto viewportContent = std::make_shared<SBorderLayout>();
 	viewportContent->construct(vpToolbar, vpRenderArea);
 
@@ -346,21 +338,11 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "+ Add Folder", .font = &m_font})}) },
 				{ {20, 2}, Silica::MakeWidget<Silica::SEditableText>({
 					.hintText = "Search Assets...",
-					.font = &m_font,
-					.onTextChanged = [](const std::string& newText) {
-						// This fires every time you type or delete a character!
-						// In the future, you will loop through your cbFilesArea 
-						// and hide SButtons that don't match this string.
-						std::string debugMsg = "Searching for: " + newText + "\n";
-						OutputDebugStringA(debugMsg.c_str());
-					},
-					.onTextCommitted = [](const std::string& finalText) {
-						OutputDebugStringA("Search Committed!\n");
-					}
+					.font = &m_font
 				}) }
 			}
 		})
-	});
+		});
 	auto cbFilesArea = Silica::MakeWidget<Silica::SBox>({
 		.backgroundColor = Silica::Color(30, 30, 30, 255),
 		.child = Silica::MakeWidget<Silica::SHorizontalBox>({
@@ -370,7 +352,7 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 				{ {10, 10}, Silica::MakeWidget<Silica::SVerticalBox>({.slots = { { {0,0}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "[FILE]\nPlayer.fbx", .font = &m_font})}) } }}) }
 			}
 		})
-	});
+		});
 	auto contentBrowserContent = std::make_shared<SBorderLayout>();
 	contentBrowserContent->construct(cbToolbar, cbFilesArea);
 
@@ -390,8 +372,6 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 				})
 			});
 		},
-
-		// Setup the Node Right-Click Menu
 		.onNodeContextClick = [this](Silica::NodeID nodeID, Silica::Vec2 screenPos) -> Silica::WidgetPtr {
 			return Silica::MakeWidget<Silica::SBox>({
 				.backgroundColor = Silica::Color(50, 50, 50, 255),
@@ -403,24 +383,22 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 				})
 			});
 		}
-	});
+		});
 
-	// Add a Float Input Node
 	nodeEditor->addNode({
 		.id = 1,
 		.title = "Delta Time",
-		.headerColor = Silica::Color(40, 150, 80, 255), // Green
+		.headerColor = Silica::Color(40, 150, 80, 255),
 		.position = { 50, 100 },
 		.size = { 120, 80 },
 		.inputs = {},
 		.outputs = { { 101, "Float", Silica::PinType::Output, Silica::Color(150, 255, 150, 255) } }
 		});
 
-	// Add a Math Node
 	nodeEditor->addNode({
 		.id = 2,
 		.title = "Multiply",
-		.headerColor = Silica::Color(80, 80, 200, 255), // Blue
+		.headerColor = Silica::Color(80, 80, 200, 255),
 		.position = { 300, 80 },
 		.size = { 120, 100 },
 		.inputs = {
@@ -430,11 +408,10 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 		.outputs = { { 203, "Result", Silica::PinType::Output, Silica::Color(150, 255, 150, 255) } }
 		});
 
-	// Pre-connect them (Output Pin 101 to Input Pin 201)
 	nodeEditor->addLink(1, 101, 201, Silica::Color(150, 255, 150, 255));
 
 
-	// -- Docking --
+	// -- Docking Workspace --
 	auto workspace = Silica::MakeWidget<Silica::SWorkspace>({
 		.initialTitle = "Viewport",
 		.initialContent = viewportContent,
@@ -444,24 +421,48 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 	auto dock = workspace->getDockSpace();
 	auto root = dock->getRootNode();
 
-	// Split Left (20%) -> Hierarchy
 	dock->splitNode(root, Silica::SplitDirection::Horizontal, 0.2f, "Hierarchy", hierarchyContent, true);
-
-	// root->child[1] is now the Viewport. Split Right (75% remains left, 25% to the right) -> Properties
 	dock->splitNode(root->child[1], Silica::SplitDirection::Horizontal, 0.75f, "Properties", propertiesContent, false);
-
-	// root->child[1]->child[0] is the Viewport. Split Bottom (70% remains top, 30% bottom) -> Content Browser
 	dock->splitNode(root->child[1]->child[0], Silica::SplitDirection::Vertical, 0.7f, "Content Browser", contentBrowserContent, false);
-
-	// --- NEW: Split the remaining Viewport in half to show the Node Editor next to it! ---
-	// root->child[1]->child[0]->child[0] is the remaining Viewport tab
 	dock->splitNode(root->child[1]->child[0]->child[0], Silica::SplitDirection::Horizontal, 0.5f, "Blueprint Graph", nodeEditor, false);
 
 
-	// 7. Assemble Application Root
-	auto appRoot = std::make_shared<SBorderLayout>();
-	appRoot->construct(mainMenuBar, workspace);
-	m_uiRoot = appRoot;
+	// -- Assembly of Root and Floating Overlay Window --
+	auto mainLayout = std::make_shared<SBorderLayout>();
+	mainLayout->construct(mainMenuBar, workspace);
+
+	// SHOWCASING SWINDOW (Free floating over the UI)
+	auto floatingWindow = Silica::MakeWidget<Silica::SWindow>({
+		.title = "Inspector Tool",
+		.initialPosition = { 350.0f, 150.0f },
+		.initialSize = { 250.0f, 150.0f },
+		.font = &m_font,
+		.content = Silica::MakeWidget<Silica::SBox>({
+			.backgroundColor = Silica::Color(35, 35, 35, 255),
+			.child = Silica::MakeWidget<Silica::SVerticalBox>({
+				.spacing = 8.0f,
+				.slots = {
+					{ {10, 5}, Silica::MakeWidget<Silica::STextBlock>({.text = "Floating Window Test", .font = &m_font}) },
+
+					// Compose the checkbox and label!
+					{ {10, 0}, Silica::MakeWidget<Silica::SHorizontalBox>({
+						.spacing = 6.0f,
+						.slots = {
+							{ {0,0}, Silica::MakeWidget<Silica::SCheckBox>({.initialCheck = false}) },
+							{ {0,0}, Silica::MakeWidget<Silica::STextBlock>({.text = "Lock Layout", .font = &m_font}) }
+						}
+					}) },
+
+					{ {10, 0}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Apply Settings", .font = &m_font})}) }
+				}
+			})
+		})
+		});
+
+	// SHOWCASING SOVERLAY (Stacking the floating window on top of the main layout)
+	m_uiRoot = Silica::MakeWidget<Silica::SOverlay>({
+		.children = { mainLayout, floatingWindow }
+		});
 
 	return true;
 }

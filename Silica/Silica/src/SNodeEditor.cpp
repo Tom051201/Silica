@@ -295,7 +295,7 @@ namespace Silica {
 					if (p1 && p2 && p1->type != p2->type) {
 						PinID outPin = (p1->type == PinType::Output) ? p1->id : p2->id;
 						PinID inPin = (p1->type == PinType::Input) ? p1->id : p2->id;
-						addLink(m_links.size() + 1, outPin, inPin, p1->color);
+						addLink((LinkID)m_links.size() + 1, outPin, inPin, p1->color);
 					}
 				}
 				m_draggingPinID = -1;

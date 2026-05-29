@@ -80,23 +80,6 @@ namespace Silica {
 		}
 	}
 
-	EventReply SScrollBox::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
-		if (allocatedGeometry.contains(mousePos)) {
-			if (m_child && m_child->getAllocatedGeometry().contains(mousePos)) {
-				EventReply reply = m_child->onMouseWheel(m_child->getAllocatedGeometry(), mousePos, scrollDelta);
-				if (reply.isHandled) return reply;
-			}
-
-			m_scrollOffset -= scrollDelta * m_scrollSpeed;
-
-			if (m_scrollOffset > m_maxScroll) m_scrollOffset = m_maxScroll;
-			if (m_scrollOffset < 0.0f) m_scrollOffset = 0.0f;
-
-			return EventReply::handled();
-		}
-		return EventReply::unhandled();
-	}
-
 	EventReply SScrollBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_isDraggingThumb) {
 			float visibleRatio = allocatedGeometry.size.y / m_child->getDesiredSize().y;
@@ -121,13 +104,16 @@ namespace Silica {
 	}
 
 	EventReply SScrollBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		Rect thumbRect = getThumbRect(allocatedGeometry);
-		if (thumbRect.contains(mousePos)) {
-			m_isDraggingThumb = true;
-			m_dragClickOffsetY = mousePos.y - thumbRect.top;
+		// -- Check If Grabbed Thumb --
+		if (button == MouseButton::Left) {
+			Rect thumbRect = getThumbRect(allocatedGeometry);
+			if (thumbRect.contains(mousePos)) {
+				m_isDraggingThumb = true;
+				m_dragClickOffsetY = mousePos.y - thumbRect.top;
 
-			SWidget::setCapturedWidget(this);
-			return EventReply::handled();
+				SWidget::setCapturedWidget(this);
+				return EventReply::handled();
+			}
 		}
 
 		if (m_child) return m_child->onMouseButtonDown(m_child->getAllocatedGeometry(), mousePos, button);
@@ -135,13 +121,32 @@ namespace Silica {
 	}
 
 	EventReply SScrollBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		if (m_isDraggingThumb) {
+		// -- Check Thumb --
+		if (m_isDraggingThumb && button == MouseButton::Left) {
 			m_isDraggingThumb = false;
 			SWidget::setCapturedWidget(nullptr);
 			return EventReply::handled();
 		}
 
 		if (m_child) return m_child->onMouseButtonUp(m_child->getAllocatedGeometry(), mousePos, button);
+		return EventReply::unhandled();
+	}
+
+	EventReply SScrollBox::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
+		if (allocatedGeometry.contains(mousePos)) {
+			if (m_child && m_child->getAllocatedGeometry().contains(mousePos)) {
+				EventReply reply = m_child->onMouseWheel(m_child->getAllocatedGeometry(), mousePos, scrollDelta);
+				if (reply.isHandled) return reply;
+			}
+
+			m_scrollOffset -= scrollDelta * m_scrollSpeed;
+
+			if (m_scrollOffset > m_maxScroll) m_scrollOffset = m_maxScroll;
+			if (m_scrollOffset < 0.0f) m_scrollOffset = 0.0f;
+
+			return EventReply::handled();
+		}
+
 		return EventReply::unhandled();
 	}
 

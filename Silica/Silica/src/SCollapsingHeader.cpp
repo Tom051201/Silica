@@ -1,4 +1,5 @@
 #include "SCollapsingHeader.h"
+
 #include "Theme.h"
 
 namespace Silica {
@@ -113,6 +114,7 @@ namespace Silica {
 	}
 
 	EventReply SCollapsingHeader::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		// -- Pass To Content --
 		if (m_isOpen && m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
 			return m_content->onMouseButtonUp(m_content->getAllocatedGeometry(), mousePos, button);
 		}

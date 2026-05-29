@@ -25,7 +25,6 @@ namespace Silica {
 		Rect alphaRect = getAlphaBarRect(allocatedGeometry);
 
 		// -- Draw SV Box (Saturation / Value) --
-		// Top-Left: White, Top-Right: Pure Hue, Bottom-Left: Black, Bottom-Right: Black
 		Color pureHue = hsvToRgb(m_h, 1.0f, 1.0f, 1.0f);
 		Geometry svGeo = { {svRect.left, svRect.top}, {svRect.getWidth(), svRect.getHeight()} };
 		addGradientRect(outDrawList, svGeo, Color::white(), pureHue, Color::black(), Color::black());
@@ -93,7 +92,18 @@ namespace Silica {
 		}
 	}
 
+	EventReply SColorPicker::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		if (m_dragState != DragState::None) {
+			updateFromMouse(allocatedGeometry, mousePos);
+			return EventReply::handled();
+		}
+
+		return EventReply::unhandled();
+	}
+
 	EventReply SColorPicker::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (getSVBoxRect(allocatedGeometry).contains(mousePos)) m_dragState = DragState::SVBox;
 		else if (getHueBarRect(allocatedGeometry).contains(mousePos)) m_dragState = DragState::HueBar;
 		else if (getAlphaBarRect(allocatedGeometry).contains(mousePos)) m_dragState = DragState::AlphaBar;
@@ -105,16 +115,9 @@ namespace Silica {
 		return EventReply::handled();
 	}
 
-	EventReply SColorPicker::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		if (m_dragState != DragState::None) {
-			updateFromMouse(allocatedGeometry, mousePos);
-			return EventReply::handled();
-		}
-
-		return EventReply::unhandled();
-	}
-
 	EventReply SColorPicker::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
 		if (m_dragState != DragState::None) {
 			m_dragState = DragState::None;
 			SWidget::setCapturedWidget(nullptr);
