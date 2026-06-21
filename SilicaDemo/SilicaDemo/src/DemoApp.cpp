@@ -177,59 +177,6 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 
 	// -- Build UI Tree --
 
-	// -- Menu Bar --
-	auto exportSubMenu = Silica::MakeWidget<Silica::SMenuAnchor>({
-		.openOnHover = true,
-		.openToRight = true,
-		.showArrow = true,
-		.anchorContent = Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Export", .font = &m_font})}),
-		.menuContent = Silica::MakeWidget<Silica::SBox>({
-			.backgroundColor = Silica::Color(50, 50, 50, 255),
-			.child = Silica::MakeWidget<Silica::SVerticalBox>({
-				.spacing = 2.0f,
-				.slots = {
-					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Windows (.exe)", .font = &m_font})}) },
-					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Linux (.elf)", .font = &m_font})}) },
-					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Web (HTML5)", .font = &m_font})}) }
-				}
-			})
-		})
-		});
-
-	auto fileMenu = Silica::MakeWidget<Silica::SMenuAnchor>({
-		.openOnHover = false,
-		.openToRight = false,
-		.anchorContent = Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "File", .font = &m_font})}),
-		.menuContent = Silica::MakeWidget<Silica::SBox>({
-			.backgroundColor = Silica::Color(45, 45, 45, 255),
-			.child = Silica::MakeWidget<Silica::SVerticalBox>({
-				.spacing = 2.0f,
-				.slots = {
-					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "New Scene", .font = &m_font})}) },
-					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Open Scene...", .font = &m_font})}) },
-					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Save", .font = &m_font})}) },
-					{ {5, 2}, Silica::MakeWidget<Silica::SBox>({.backgroundColor = Silica::Color(60,60,60,255), .child = Silica::MakeWidget<Silica::STextBlock>({.text = "", .font = &m_font})}) },
-					{ {5, 2}, exportSubMenu },
-					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Exit", .font = &m_font})}) }
-				}
-			})
-		})
-		});
-
-	auto mainMenuBar = Silica::MakeWidget<Silica::SBox>({
-		.backgroundColor = Silica::Color(40, 40, 40, 255),
-		.child = Silica::MakeWidget<Silica::SHorizontalBox>({
-			.slots = {
-				{ {15, 6}, Silica::MakeWidget<Silica::STextBlock>({.text = "AXION STUDIO", .font = &m_font}) },
-				{ {2, 2}, fileMenu },
-				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Edit", .font = &m_font})}) },
-				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "View", .font = &m_font})}) },
-				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Project", .font = &m_font})}) },
-				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Help", .font = &m_font})}) }
-			}
-		})
-		});
-
 	// -- Hierarchy --
 	auto hierarchyContent = Silica::MakeWidget<Silica::SScrollBox>({
 		.child = Silica::MakeWidget<Silica::SVerticalBox>({
@@ -385,46 +332,133 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 		}
 		});
 
-	nodeEditor->addNode({
-		.id = 1,
-		.title = "Delta Time",
-		.headerColor = Silica::Color(40, 150, 80, 255),
-		.position = { 50, 100 },
-		.size = { 120, 80 },
-		.inputs = {},
-		.outputs = { { 101, "Float", Silica::PinType::Output, Silica::Color(150, 255, 150, 255) } }
-		});
-
-	nodeEditor->addNode({
-		.id = 2,
-		.title = "Multiply",
-		.headerColor = Silica::Color(80, 80, 200, 255),
-		.position = { 300, 80 },
-		.size = { 120, 100 },
-		.inputs = {
-			{ 201, "A", Silica::PinType::Input, Silica::Color(150, 255, 150, 255) },
-			{ 202, "B", Silica::PinType::Input, Silica::Color(150, 255, 150, 255) }
-		},
-		.outputs = { { 203, "Result", Silica::PinType::Output, Silica::Color(150, 255, 150, 255) } }
-		});
-
-	nodeEditor->addLink(1, 101, 201, Silica::Color(150, 255, 150, 255));
-
+	//nodeEditor->addNode({
+	//	.id = 1,
+	//	.title = "Delta Time",
+	//	.headerColor = Silica::Color(40, 150, 80, 255),
+	//	.position = { 50, 100 },
+	//	.size = { 120, 80 },
+	//	.inputs = {},
+	//	.outputs = { { 101, "Float", Silica::PinType::Output, Silica::Color(150, 255, 150, 255) } }
+	//	});
+	//
+	//nodeEditor->addNode({
+	//	.id = 2,
+	//	.title = "Multiply",
+	//	.headerColor = Silica::Color(80, 80, 200, 255),
+	//	.position = { 300, 80 },
+	//	.size = { 120, 100 },
+	//	.inputs = {
+	//		{ 201, "A", Silica::PinType::Input, Silica::Color(150, 255, 150, 255) },
+	//		{ 202, "B", Silica::PinType::Input, Silica::Color(150, 255, 150, 255) }
+	//	},
+	//	.outputs = { { 203, "Result", Silica::PinType::Output, Silica::Color(150, 255, 150, 255) } }
+	//	});
+	//
+	//nodeEditor->addLink(1, 101, 201, Silica::Color(150, 255, 150, 255));
 
 	// -- Docking Workspace --
 	auto workspace = Silica::MakeWidget<Silica::SWorkspace>({
 		.initialTitle = "Viewport",
 		.initialContent = viewportContent,
 		.font = &m_font
-		});
+	});
 
 	auto dock = workspace->getDockSpace();
-	auto root = dock->getRootNode();
 
-	dock->splitNode(root, Silica::SplitDirection::Horizontal, 0.2f, "Hierarchy", hierarchyContent, true);
-	dock->splitNode(root->child[1], Silica::SplitDirection::Horizontal, 0.75f, "Properties", propertiesContent, false);
-	dock->splitNode(root->child[1]->child[0], Silica::SplitDirection::Vertical, 0.7f, "Content Browser", contentBrowserContent, false);
-	dock->splitNode(root->child[1]->child[0]->child[0], Silica::SplitDirection::Horizontal, 0.5f, "Blueprint Graph", nodeEditor, false);
+	dock->registerTab("Hierarchy", hierarchyContent);
+	dock->registerTab("Properties", propertiesContent);
+	dock->registerTab("Content Browser", contentBrowserContent);
+	dock->registerTab("Blueprint Graph", nodeEditor);
+	dock->registerTab("Viewport", viewportContent);
+
+	dock->loadLayout("editor_layout.ini");
+
+	if (!dock->getRootNode() || dock->getRootNode()->tabs.empty() && dock->getRootNode()->splitDirection == Silica::SplitDirection::None) {
+		auto root = dock->getRootNode();
+		dock->splitNode(root, Silica::SplitDirection::Horizontal, 0.2f, "Hierarchy", hierarchyContent, true);
+		dock->splitNode(root->child[1], Silica::SplitDirection::Horizontal, 0.75f, "Properties", propertiesContent, false);
+		dock->splitNode(root->child[1]->child[0], Silica::SplitDirection::Vertical, 0.7f, "Content Browser", contentBrowserContent, false);
+		dock->splitNode(root->child[1]->child[0]->child[0], Silica::SplitDirection::Horizontal, 0.5f, "Blueprint Graph", nodeEditor, false);
+	}
+
+	// -- Menu Bar --
+	auto exportSubMenu = Silica::MakeWidget<Silica::SMenuAnchor>({
+		.openOnHover = true,
+		.openToRight = true,
+		.showArrow = true,
+		.anchorContent = Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Export", .font = &m_font})}),
+		.menuContent = Silica::MakeWidget<Silica::SBox>({
+			.backgroundColor = Silica::Color(50, 50, 50, 255),
+			.child = Silica::MakeWidget<Silica::SVerticalBox>({
+				.spacing = 2.0f,
+				.slots = {
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Windows (.exe)", .font = &m_font})}) },
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Linux (.elf)", .font = &m_font})}) },
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Web (HTML5)", .font = &m_font})}) }
+				}
+			})
+		})
+		});
+
+	auto fileMenu = Silica::MakeWidget<Silica::SMenuAnchor>({
+		.openOnHover = false,
+		.openToRight = false,
+		.anchorContent = Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "File", .font = &m_font})}),
+		.menuContent = Silica::MakeWidget<Silica::SBox>({
+			.backgroundColor = Silica::Color(45, 45, 45, 255),
+			.child = Silica::MakeWidget<Silica::SVerticalBox>({
+				.spacing = 2.0f,
+				.slots = {
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "New Scene", .font = &m_font})}) },
+
+					// WIRE UP LOAD!
+					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({
+						.padding = { 10.0f, 10.0f },
+						.color = Silica::GetTheme().buttonNormal,
+						.hoverColor = Silica::GetTheme().buttonHover,
+						.pressedColor = Silica::GetTheme().buttonPressed,
+						.onClick = [dock, nodeEditor]() {
+							dock->loadLayout("editor_layout.ini");
+							nodeEditor->loadGraph("blueprint_graph.ini");
+							return Silica::EventReply::handled();
+						},
+						.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Load Layout", .font = &m_font}),
+					}) },
+
+				// WIRE UP SAVE!
+				{ {5, 2}, Silica::MakeWidget<Silica::SButton>({
+					
+					.onClick = [dock, nodeEditor]() {
+						dock->saveLayout("editor_layout.ini");
+						nodeEditor->saveGraph("blueprint_graph.ini");
+						OutputDebugStringA("Layout Saved Successfully!\n");
+						return Silica::EventReply::handled();
+					},
+					.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Save Layout", .font = &m_font}),
+				}) },
+
+				{ {5, 2}, Silica::MakeWidget<Silica::SBox>({.backgroundColor = Silica::Color(60,60,60,255), .child = Silica::MakeWidget<Silica::STextBlock>({.text = "", .font = &m_font})}) },
+				{ {5, 2}, exportSubMenu },
+				{ {5, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Exit", .font = &m_font})}) }
+			}
+		})
+	})
+		});
+
+	auto mainMenuBar = Silica::MakeWidget<Silica::SBox>({
+		.backgroundColor = Silica::Color(40, 40, 40, 255),
+		.child = Silica::MakeWidget<Silica::SHorizontalBox>({
+			.slots = {
+				{ {15, 6}, Silica::MakeWidget<Silica::STextBlock>({.text = "AXION STUDIO", .font = &m_font}) },
+				{ {2, 2}, fileMenu },
+				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Edit", .font = &m_font})}) },
+				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "View", .font = &m_font})}) },
+				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Project", .font = &m_font})}) },
+				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Help", .font = &m_font})}) }
+			}
+		})
+		});
 
 
 	// -- Assembly of Root and Floating Overlay Window --
@@ -462,7 +496,7 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 	// SHOWCASING SOVERLAY (Stacking the floating window on top of the main layout)
 	m_uiRoot = Silica::MakeWidget<Silica::SOverlay>({
 		.children = { mainLayout, floatingWindow }
-		});
+	});
 
 	return true;
 }

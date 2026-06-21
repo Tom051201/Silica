@@ -2,6 +2,7 @@
 
 #include <functional>
 #include <algorithm>
+#include <sstream>
 
 #include "Renderer.h"
 #include "Theme.h"
@@ -491,6 +492,106 @@ namespace Silica {
 		}
 
 		if (m_onUndockWindow) m_onUndockWindow(savedTab.title, savedTab.content, mousePos);
+	}
+
+	void SDockSpace::saveLayout(const std::filesystem::path& filepath) {
+		std::ofstream out(filepath);
+		if (!out.is_open()) return;
+
+		out << "[Silica_Layout_v1]\n";
+		serializeNode(out, m_rootNode, 0);
+		out.close();
+	}
+
+	void SDockSpace::loadLayout(const std::filesystem::path& filepath) {
+		std::ifstream in(filepath);
+		if (!in.is_open()) return;
+
+		std::string header;
+		std::getline(in, header);
+		if (header != "[Silica_Layout_v1]") return;
+
+		m_rootNode = deserializeNode(in);
+		in.close();
+	}
+
+	void SDockSpace::serializeNode(std::ofstream& out, DockNodePtr node, int depth) {
+		if (!node) return;
+
+		std::string indent(depth * 2, ' ');
+
+		if (node->splitDirection != SplitDirection::None) {
+			out << indent << "Split "
+				<< (node->splitDirection == SplitDirection::Horizontal ? "H " : "V ")
+				<< node->splitRatio << "\n";
+
+			serializeNode(out, node->child[0], depth + 1);
+			serializeNode(out, node->child[1], depth + 1);
+		}
+		else {
+			out << indent << "Tabs " << node->tabs.size() << " " << node->activeTab << "\n";
+			for (const auto& tab : node->tabs) {
+				out << indent << "  Tab " << tab.title << "\n";
+			}
+		}
+	}
+
+	DockNodePtr SDockSpace::deserializeNode(std::ifstream& in) {
+		std::string line;
+		if (!std::getline(in, line)) return nullptr;
+
+		line = trim(line);
+		if (line.empty()) return deserializeNode(in);
+
+		DockNodePtr node = std::make_shared<SDockNode>();
+
+		if (line.substr(0, 5) == "Split") {
+			char dir;
+			std::istringstream iss(line.substr(6));
+			iss >> dir >> node->splitRatio;
+
+			node->splitDirection = (dir == 'H') ? SplitDirection::Horizontal : SplitDirection::Vertical;
+			node->child[0] = deserializeNode(in);
+			node->child[1] = deserializeNode(in);
+		}
+		else if (line.substr(0, 4) == "Tabs") {
+			node->splitDirection = SplitDirection::None;
+
+			int tabCount = 0;
+			std::istringstream iss(line.substr(5));
+			iss >> tabCount >> node->activeTab;
+
+			for (int i = 0; i < tabCount; ++i) {
+				std::string tabLine;
+				std::getline(in, tabLine);
+				tabLine = trim(tabLine);
+
+				if (tabLine.substr(0, 4) == "Tab ") {
+					std::string title = tabLine.substr(4);
+
+					WidgetPtr content = nullptr;
+					auto it = m_widgetRegistry.find(title);
+					if (it != m_widgetRegistry.end()) {
+						content = it->second;
+					}
+
+					node->tabs.push_back({ title, content, Rect() });
+				}
+			}
+		}
+
+		return node;
+	}
+
+	std::string SDockSpace::trim(const std::string& str) {
+		size_t first = str.find_first_not_of(' ');
+		if (std::string::npos == first) return str;
+		size_t last = str.find_last_not_of(' ');
+		return str.substr(first, (last - first + 1));
+	}
+
+	void SDockSpace::registerTab(const std::string& title, WidgetPtr content) {
+		m_widgetRegistry[title] = content;
 	}
 
 }

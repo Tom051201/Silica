@@ -85,7 +85,7 @@ namespace Silica {
 
 	EventReply SHorizontalBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		for (const Slot& slot : m_slots) {
-			if (slot.child && slot.child->getAllocatedGeometry().contains(mousePos)) {
+			if (slot.child) {
 				EventReply reply = slot.child->onMouseButtonDown(slot.child->getAllocatedGeometry(), mousePos, button);
 				if (reply.isHandled) return reply;
 			}
@@ -96,7 +96,7 @@ namespace Silica {
 
 	EventReply SHorizontalBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		for (const Slot& slot : m_slots) {
-			if (slot.child && slot.child->getAllocatedGeometry().contains(mousePos)) {
+			if (slot.child) {
 				EventReply reply = slot.child->onMouseButtonUp(slot.child->getAllocatedGeometry(), mousePos, button);
 				if (reply.isHandled) return reply;
 			}
@@ -107,13 +107,25 @@ namespace Silica {
 
 	EventReply SHorizontalBox::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
 		for (const Slot& slot : m_slots) {
-			if (slot.child && slot.child->getAllocatedGeometry().contains(mousePos)) {
+			if (slot.child) {
 				EventReply reply = slot.child->onMouseWheel(slot.child->getAllocatedGeometry(), mousePos, scrollDelta);
 				if (reply.isHandled) return reply;
 			}
 		}
 
 		return EventReply::unhandled();
+	}
+
+	void SHorizontalBox::addSlot(const Slot& slot) {
+		m_slots.push_back(slot);
+	}
+
+	void SHorizontalBox::clearSlots() {
+		m_slots.clear();
+	}
+
+	const std::vector<Slot>& SHorizontalBox::getSlots() const {
+		return m_slots;
 	}
 
 }

@@ -1,15 +1,28 @@
 #pragma once
+#include <string>
+#include <functional>
 
 #include "SWidget.h"
+#include "MathTypes.h"
+#include "FontAtlas.h"
 
 namespace Silica {
 
-	class SVerticalBox : public SWidget {
+	class SVector3Input : public SWidget {
 	public:
 
 		struct Args {
-			float spacing = 0.0f;
-			std::vector<Slot> slots;
+			std::string label;
+			Vec3 initialValue;
+			FontAtlas* font = nullptr;
+			float labelWidth = 70.0f;
+			Color firstColor = Color(200, 50, 50, 255);
+			Color secondColor = Color(50, 200, 50, 255);
+			Color thirdColor = Color(50, 50, 200, 255);
+			std::string firstText = "X";
+			std::string secondText = "Y";
+			std::string thirdText = "Z";
+			std::function<void(Vec3)> onValueChanged = nullptr;
 		};
 
 		void construct(const Args& args);
@@ -21,16 +34,11 @@ namespace Silica {
 		EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
-		EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) override;
-
-		void addSlot(const Slot& slot);
-		void clearSlots();
-		const std::vector<Slot>& getSlots() const;
 
 	private:
 
-		float m_spacing;
-		std::vector<Slot> m_slots;
+		WidgetPtr m_rootAssembly;
+		Vec3 m_currentValue;
 
 	};
 

@@ -1,15 +1,20 @@
 #pragma once
 
+#include <string>
+#include <functional>
+
 #include "SWidget.h"
+#include "FontAtlas.h"
 
 namespace Silica {
 
-	class SVerticalBox : public SWidget {
+	class SFloatInput : public SWidget {
 	public:
 
 		struct Args {
-			float spacing = 0.0f;
-			std::vector<Slot> slots;
+			float initialValue = 0.0f;
+			FontAtlas* font = nullptr;
+			std::function<void(float)> onValueChanged = nullptr;
 		};
 
 		void construct(const Args& args);
@@ -21,16 +26,12 @@ namespace Silica {
 		EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
-		EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) override;
-
-		void addSlot(const Slot& slot);
-		void clearSlots();
-		const std::vector<Slot>& getSlots() const;
 
 	private:
 
-		float m_spacing;
-		std::vector<Slot> m_slots;
+		WidgetPtr m_editableText;
+		float m_currentValue;
+		std::function<void(float)> m_onValueChanged;
 
 	};
 

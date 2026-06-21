@@ -9,6 +9,7 @@ namespace Silica {
 		m_isOpen = args.initiallyOpen;
 		m_content = args.content;
 		m_font = args.font;
+		m_trailingWidget = args.trailingWidget;
 
 		m_headerColor = args.headerColor.value_or(Color(50, 50, 50, 255));
 		m_headerHoverColor = args.headerHoverColor.value_or(Color(70, 70, 70, 255));
@@ -18,23 +19,35 @@ namespace Silica {
 	void SCollapsingHeader::computeDesiredSize() {
 		m_desiredSize = Vec2(0.0f, m_headerHeight);
 
+		if (m_trailingWidget) {
+			m_trailingWidget->computeDesiredSize();
+		}
+
 		if (m_isOpen && m_content) {
 			m_content->computeDesiredSize();
 			Vec2 childSize = m_content->getDesiredSize();
 			m_desiredSize.y += childSize.y;
-			m_desiredSize.x = childSize.x;
+			m_desiredSize.x = std::max(m_desiredSize.x, childSize.x);
 		}
 	}
 
 	void SCollapsingHeader::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 
+		if (m_trailingWidget) {
+			Vec2 trailingSize = m_trailingWidget->getDesiredSize();
+			Geometry trailGeo;
+			trailGeo.size = trailingSize;
+			trailGeo.position.x = allocatedGeometry.position.x + allocatedGeometry.size.x - trailingSize.x - 4.0f;
+			trailGeo.position.y = allocatedGeometry.position.y + ((m_headerHeight - trailingSize.y) * 0.5f);
+			m_trailingWidget->arrangeChildren(trailGeo);
+		}
+
 		if (m_isOpen && m_content) {
 			Geometry childGeo;
 			childGeo.position.x = allocatedGeometry.position.x;
 			childGeo.position.y = allocatedGeometry.position.y + m_headerHeight;
 			childGeo.size.x = allocatedGeometry.size.x;
-
 			childGeo.size.y = allocatedGeometry.size.y - m_headerHeight;
 			if (childGeo.size.y < 0) childGeo.size.y = 0;
 
@@ -81,7 +94,10 @@ namespace Silica {
 			}
 		}
 
-		// -- Draw Content If Open --
+		if (m_trailingWidget) {
+			m_trailingWidget->onDraw(outDrawList, m_trailingWidget->getAllocatedGeometry());
+		}
+
 		if (m_isOpen && m_content) {
 			m_content->onDraw(outDrawList, m_content->getAllocatedGeometry());
 		}
@@ -89,18 +105,35 @@ namespace Silica {
 
 	EventReply SCollapsingHeader::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		m_isHeaderHovered = getHeaderRect().contains(mousePos);
+		EventReply finalReply = EventReply::unhandled();
+
+		if (m_trailingWidget) {
+			EventReply reply = m_trailingWidget->onMouseMove(m_trailingWidget->getAllocatedGeometry(), mousePos);
+			if (reply.isHandled) finalReply = reply;
+		}
 
 		if (m_isOpen && m_content) {
 			EventReply reply = m_content->onMouseMove(m_content->getAllocatedGeometry(), mousePos);
-			if (reply.isHandled) return reply;
+			if (reply.isHandled) finalReply = reply;
+		}
+
+		if (finalReply.isHandled) {
+			m_isHeaderHovered = false;
+			return EventReply::handled();
 		}
 
 		return m_isHeaderHovered ? EventReply::handled() : EventReply::unhandled();
 	}
 
 	EventReply SCollapsingHeader::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button != MouseButton::Left) return EventReply::unhandled();
+
+		if (m_trailingWidget && m_trailingWidget->getAllocatedGeometry().contains(mousePos)) {
+			return m_trailingWidget->onMouseButtonDown(m_trailingWidget->getAllocatedGeometry(), mousePos, button);
+		}
+
 		// -- Toggle State --
-		if (button == MouseButton::Left && getHeaderRect().contains(mousePos)) {
+		if (getHeaderRect().contains(mousePos)) {
 			m_isOpen = !m_isOpen;
 			return EventReply::handled();
 		}
@@ -114,6 +147,11 @@ namespace Silica {
 	}
 
 	EventReply SCollapsingHeader::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+
+		if (m_trailingWidget && m_trailingWidget->getAllocatedGeometry().contains(mousePos)) {
+			return m_trailingWidget->onMouseButtonUp(m_trailingWidget->getAllocatedGeometry(), mousePos, button);
+		}
+
 		// -- Pass To Content --
 		if (m_isOpen && m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
 			return m_content->onMouseButtonUp(m_content->getAllocatedGeometry(), mousePos, button);
@@ -123,6 +161,11 @@ namespace Silica {
 	}
 
 	EventReply SCollapsingHeader::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
+
+		if (m_trailingWidget && m_trailingWidget->getAllocatedGeometry().contains(mousePos)) {
+			return m_trailingWidget->onMouseWheel(m_trailingWidget->getAllocatedGeometry(), mousePos, scrollDelta);
+		}
+
 		if (m_isOpen && m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
 			return m_content->onMouseWheel(m_content->getAllocatedGeometry(), mousePos, scrollDelta);
 		}

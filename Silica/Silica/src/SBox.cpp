@@ -6,9 +6,11 @@ namespace Silica {
 
 	void SBox::construct(const Args& args) {
 		m_padding = args.padding;
+		m_explicitSize = args.explicitSize.value_or(Vec2::zero());
 		m_backgroundColor = args.backgroundColor.value_or(GetTheme().backgroundPanel);
 		m_hoverColor = args.hoverColor.value_or(Color(0, 0, 0, 0));
 		m_onClick = args.onClick;
+		m_onDrop = args.onDrop;
 		m_child = args.child;
 	}
 
@@ -22,17 +24,27 @@ namespace Silica {
 
 		m_desiredSize.x += m_padding.x * 2;
 		m_desiredSize.y += m_padding.y * 2;
+
+		if (m_explicitSize.x > 0.0f) m_desiredSize.x = m_explicitSize.x;
+		if (m_explicitSize.y > 0.0f) m_desiredSize.y = m_explicitSize.y;
 	}
 
 	void SBox::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 
 		if (m_child) {
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
-			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
-			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
+			Geometry childGeo = allocatedGeometry;
+
+			childGeo.position.x += m_padding.x;
+			childGeo.position.y += m_padding.y;
+			childGeo.size.x -= m_padding.x * 2.0f;
+			childGeo.size.y -= m_padding.y * 2.0f;
+
+			if (m_explicitSize.x > 0.0f) childGeo.size.x = m_explicitSize.x;
+			if (m_explicitSize.y > 0.0f) childGeo.size.y = m_explicitSize.y;
+
+			childGeo.size.x = std::max(0.0f, childGeo.size.x);
+			childGeo.size.y = std::max(0.0f, childGeo.size.y);
 
 			m_child->arrangeChildren(childGeo);
 		}
@@ -109,6 +121,10 @@ namespace Silica {
 			if (reply.isHandled) return reply;
 		}
 
+		if (allocatedGeometry.contains(mousePos) && m_onDrop) {
+			return m_onDrop();
+		}
+
 		return EventReply::unhandled();
 	}
 
@@ -144,6 +160,10 @@ namespace Silica {
 			drawList.commands.push_back({ 0, 0, 0 });
 		}
 		drawList.commands.back().indexCount += 6;
+	}
+
+	void SBox::setChild(WidgetPtr child) {
+		m_child = child;
 	}
 
 }

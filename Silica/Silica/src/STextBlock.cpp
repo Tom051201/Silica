@@ -15,12 +15,26 @@ namespace Silica {
 		m_desiredSize = Vec2::zero();
 		if (!m_font || m_text.empty()) return;
 
-		m_desiredSize.y = 20.0f;
+		float lineHeight = 20.0f;
+		float currentWidth = 0.0f;
+		float maxWidth = 0.0f;
+
+		m_desiredSize.y = lineHeight;
 
 		for (char c : m_text) {
-			const Glyph& g = m_font->getGlyph(c);
-			m_desiredSize.x += g.advanceX;
+			if (c == '\n') {
+				maxWidth = std::max(maxWidth, currentWidth);
+				currentWidth = 0.0f;
+				m_desiredSize.y += lineHeight;
+			}
+			else {
+				const Glyph& g = m_font->getGlyph(c);
+				currentWidth += g.advanceX;
+			}
 		}
+
+		maxWidth = std::max(maxWidth, currentWidth);
+		m_desiredSize.x = maxWidth;
 	}
 
 	void STextBlock::arrangeChildren(const Geometry& allocatedGeometry) {
@@ -30,10 +44,19 @@ namespace Silica {
 	void STextBlock::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		if (!m_font || m_text.empty() || m_color.a() == 0) return;
 
-		float cursorX = allocatedGeometry.position.x;
+		float startX = allocatedGeometry.position.x;
+		float cursorX = startX;
+
+		float lineHeight = 20.0f;
 		float baselineY = allocatedGeometry.position.y + 16.0f;
 
 		for (char c : m_text) {
+			if (c == '\n') {
+				cursorX = startX;
+				baselineY += lineHeight;
+				continue;
+			}
+
 			const Glyph& g = m_font->getGlyph(c);
 
 			if (g.size.x > 0 && g.size.y > 0) {
@@ -65,6 +88,10 @@ namespace Silica {
 
 			cursorX += g.advanceX;
 		}
+	}
+
+	void STextBlock::setText(const std::string& text) {
+		m_text = text;
 	}
 
 }

@@ -9,8 +9,10 @@ namespace Silica {
 		m_anchorContent = args.anchorContent;
 		m_menuContent = args.menuContent;
 		m_openOnHover = args.openOnHover;
+		m_openOnRightClick = args.openOnRightClick;
 		m_openToRight = args.openToRight;
 		m_showArrow = args.showArrow;
+		m_openAtMousePos = args.openAtMousePos;
 	}
 
 	void SMenuAnchor::computeDesiredSize() {
@@ -40,11 +42,13 @@ namespace Silica {
 			Vec2 menuDesired = m_menuContent->getDesiredSize();
 			m_menuGeometry.size = menuDesired;
 
+			Vec2 originPos = m_openAtMousePos ? m_clickPos : allocatedGeometry.position;
+
 			if (m_openToRight) {
-				m_menuGeometry.position = { allocatedGeometry.position.x + allocatedGeometry.size.x, allocatedGeometry.position.y };
+				m_menuGeometry.position = { originPos.x + (m_openAtMousePos ? 0.0f : allocatedGeometry.size.x), originPos.y };
 			}
 			else {
-				m_menuGeometry.position = { allocatedGeometry.position.x, allocatedGeometry.position.y + allocatedGeometry.size.y };
+				m_menuGeometry.position = { originPos.x, originPos.y + (m_openAtMousePos ? 0.0f : allocatedGeometry.size.y) };
 			}
 
 			m_menuContent->arrangeChildren(m_menuGeometry);
@@ -92,24 +96,49 @@ namespace Silica {
 		}
 
 		bool isHoveringVisually = allocatedGeometry.contains(mousePos);
-
 		return isHoveringVisually ? EventReply::handled() : EventReply::unhandled();
 	}
 
 	EventReply SMenuAnchor::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		if (button != MouseButton::Left) return EventReply::unhandled();
+		if (button != MouseButton::Left && button != MouseButton::Right) return EventReply::unhandled();
 
-		if (allocatedGeometry.contains(mousePos)) {
-			if (!m_openOnHover) m_isOpen = !m_isOpen;
-			return EventReply::handled();
+		EventReply childReply = EventReply::unhandled();
+
+		if (m_anchorContent) {
+			childReply = m_anchorContent->onMouseButtonDown(m_anchorContent->getAllocatedGeometry(), mousePos, button);
 		}
 
-		return EventReply::unhandled();
+		if (allocatedGeometry.contains(mousePos)) {
+			if (m_openOnRightClick && button == MouseButton::Right && childReply.isHandled) {
+				return childReply;
+			}
+
+			if (!m_openOnHover) {
+				if (m_openOnRightClick && button == MouseButton::Right) {
+					m_isOpen = !m_isOpen;
+					m_clickPos = mousePos;
+				}
+				else if (!m_openOnRightClick && button == MouseButton::Left) {
+					m_isOpen = !m_isOpen;
+					m_clickPos = mousePos;
+				}
+			}
+
+			return childReply.isHandled ? childReply : EventReply::handled();
+		}
+
+		if (m_isOpen && !m_menuGeometry.contains(mousePos) && !allocatedGeometry.contains(mousePos)) {
+			m_isOpen = false;
+		}
+
+		return childReply;
 	}
 
 	EventReply SMenuAnchor::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		if (m_anchorContent && allocatedGeometry.contains(mousePos)) {
-			return m_anchorContent->onMouseButtonUp(m_anchorContent->getAllocatedGeometry(), mousePos, button);
+
+		if (m_anchorContent) {
+			EventReply reply = m_anchorContent->onMouseButtonUp(m_anchorContent->getAllocatedGeometry(), mousePos, button);
+			if (reply.isHandled) return reply;
 		}
 
 		return EventReply::unhandled();

@@ -4,12 +4,12 @@
 
 namespace Silica {
 
-	class SVerticalBox : public SWidget {
+	class SWrapBox : public SWidget {
 	public:
 
 		struct Args {
-			float spacing = 0.0f;
-			std::vector<Slot> slots;
+			float spacing = 16.0f;
+			std::vector<WidgetPtr> children;
 		};
 
 		void construct(const Args& args);
@@ -23,14 +23,12 @@ namespace Silica {
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
 		EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) override;
 
-		void addSlot(const Slot& slot);
-		void clearSlots();
-		const std::vector<Slot>& getSlots() const;
+		void addChild(WidgetPtr child);
 
 	private:
 
-		float m_spacing;
-		std::vector<Slot> m_slots;
+		float m_spacing = 16.0f;
+		std::vector<WidgetPtr> m_children;
 
 	};
 

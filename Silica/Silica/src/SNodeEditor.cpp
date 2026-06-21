@@ -1,6 +1,7 @@
 #include "SNodeEditor.h"
 
 #include <algorithm>
+#include <sstream>
 
 #include "Renderer.h"
 #include "Theme.h"
@@ -542,6 +543,140 @@ namespace Silica {
 		}
 
 		return -1;
+	}
+
+	const std::vector<GraphNode>& SNodeEditor::getNodes() const {
+		return m_nodes;
+	}
+
+	const std::vector<GraphLink>& SNodeEditor::getLinks() const {
+		return m_links;
+	}
+
+	void SNodeEditor::clear() {
+		m_nodes.clear(); m_links.clear();
+		m_selectedNodeID = -1; m_selectedLinkID = -1;
+		m_draggingNodeID = -1; m_draggingPinID = -1;
+	}
+
+	void SNodeEditor::saveGraph(const std::filesystem::path& filepath) {
+		std::ofstream out(filepath);
+		if (!out.is_open()) return;
+
+		out << "[SNodeEditor_v1]\n";
+
+		// -- Save Camera State --
+		out << "Pan " << m_panOffset.x << " " << m_panOffset.y << "\n";
+		out << "Zoom " << m_zoom << "\n";
+
+		// -- Save Nodes --
+		for (const auto& node : m_nodes) {
+			out << "[Node]\n";
+			out << "ID " << node.id << "\n";
+			out << "Title " << node.title << "\n";
+			out << "Pos " << node.position.x << " " << node.position.y << "\n";
+			out << "Size " << node.size.x << " " << node.size.y << "\n";
+			out << "Color " << (int)node.headerColor.r() << " " << (int)node.headerColor.g() << " " << (int)node.headerColor.b() << " " << (int)node.headerColor.a() << "\n";
+
+			// -- Save Pins --
+			for (const auto& pin : node.inputs) {
+				out << "In " << pin.id << " "
+					<< (int)pin.color.r() << " " << (int)pin.color.g() << " "
+					<< (int)pin.color.b() << " " << (int)pin.color.a() << " " << pin.name << "\n";
+			}
+			for (const auto& pin : node.outputs) {
+				out << "Out " << pin.id << " "
+					<< (int)pin.color.r() << " " << (int)pin.color.g() << " "
+					<< (int)pin.color.b() << " " << (int)pin.color.a() << " " << pin.name << "\n";
+			}
+		}
+
+		// -- Save Links --
+		for (const auto& link : m_links) {
+			out << "[Link]\n";
+			out << "ID " << link.id << "\n";
+			out << "Start " << link.startPin << "\n";
+			out << "End " << link.endPin << "\n";
+			out << "Color " << (int)link.color.r() << " " << (int)link.color.g() << " " << (int)link.color.b() << " " << (int)link.color.a() << "\n";
+		}
+
+		out.close();
+	}
+
+	void SNodeEditor::loadGraph(const std::filesystem::path& filepath) {
+		std::ifstream in(filepath);
+		if (!in.is_open()) return;
+
+		std::string line;
+		std::getline(in, line);
+		if (line != "[SNodeEditor_v1]") return;
+
+		// -- Clear Current Graph State --
+		m_nodes.clear();
+		m_links.clear();
+		m_selectedNodeID = -1;
+		m_selectedLinkID = -1;
+		m_draggingNodeID = -1;
+		m_draggingPinID = -1;
+
+		GraphNode* currentNode = nullptr;
+		GraphLink* currentLink = nullptr;
+
+		while (std::getline(in, line)) {
+			if (line.empty()) continue;
+
+			std::istringstream iss(line);
+			std::string token;
+			iss >> token;
+
+			if (token == "Pan") {
+				iss >> m_panOffset.x >> m_panOffset.y;
+			}
+			else if (token == "Zoom") {
+				iss >> m_zoom;
+			}
+			else if (token == "[Node]") {
+				m_nodes.push_back(GraphNode());
+				currentNode = &m_nodes.back();
+				currentLink = nullptr;
+			}
+			else if (token == "[Link]") {
+				m_links.push_back(GraphLink());
+				currentLink = &m_links.back();
+				currentNode = nullptr;
+			}
+			else if (currentNode) {
+				if (token == "ID") iss >> currentNode->id;
+				else if (token == "Title") std::getline(iss >> std::ws, currentNode->title);
+				else if (token == "Pos") iss >> currentNode->position.x >> currentNode->position.y;
+				else if (token == "Size") iss >> currentNode->size.x >> currentNode->size.y;
+				else if (token == "Color") {
+					int r, g, b, a; iss >> r >> g >> b >> a;
+					currentNode->headerColor = Color(r, g, b, a);
+				}
+				else if (token == "In" || token == "Out") {
+					NodePin pin;
+					int r, g, b, a;
+					iss >> pin.id >> r >> g >> b >> a;
+					std::getline(iss >> std::ws, pin.name);
+
+					pin.color = Color(r, g, b, a);
+					pin.type = (token == "In") ? PinType::Input : PinType::Output;
+
+					if (pin.type == PinType::Input) currentNode->inputs.push_back(pin);
+					else currentNode->outputs.push_back(pin);
+				}
+			}
+			else if (currentLink) {
+				if (token == "ID") iss >> currentLink->id;
+				else if (token == "Start") iss >> currentLink->startPin;
+				else if (token == "End") iss >> currentLink->endPin;
+				else if (token == "Color") {
+					int r, g, b, a; iss >> r >> g >> b >> a;
+					currentLink->color = Color(r, g, b, a);
+				}
+			}
+		}
 	}
 
 }

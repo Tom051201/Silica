@@ -4,12 +4,16 @@
 
 namespace Silica {
 
-	class SVerticalBox : public SWidget {
+	enum class HorizontalAlign { Fill, Left, Center, Right };
+	enum class VerticalAlign { Fill, Top, Center, Bottom };
+
+	class SAlign : public SWidget {
 	public:
 
 		struct Args {
-			float spacing = 0.0f;
-			std::vector<Slot> slots;
+			HorizontalAlign horizontalAlign = HorizontalAlign::Center;
+			VerticalAlign verticalAlign = VerticalAlign::Center;
+			WidgetPtr child = nullptr;
 		};
 
 		void construct(const Args& args);
@@ -23,14 +27,11 @@ namespace Silica {
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
 		EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) override;
 
-		void addSlot(const Slot& slot);
-		void clearSlots();
-		const std::vector<Slot>& getSlots() const;
-
 	private:
 
-		float m_spacing;
-		std::vector<Slot> m_slots;
+		HorizontalAlign m_horizontalAlign = HorizontalAlign::Center;
+		VerticalAlign m_verticalAlign = VerticalAlign::Center;
+		WidgetPtr m_child = nullptr;
 
 	};
 

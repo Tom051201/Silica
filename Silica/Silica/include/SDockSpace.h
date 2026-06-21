@@ -4,6 +4,9 @@
 #include <optional>
 #include <vector>
 #include <string>
+#include <filesystem>
+#include <fstream>
+#include <unordered_map>
 
 #include "SWidget.h"
 #include "FontAtlas.h"
@@ -70,6 +73,11 @@ namespace Silica {
 		void updateDragDropPreview(const Vec2& mousePos, bool isDragging);
 		bool processDrop(std::string title, WidgetPtr draggedContent);
 
+		void saveLayout(const std::filesystem::path& filePath);
+		void loadLayout(const std::filesystem::path& filePath);
+
+		void registerTab(const std::string& title, WidgetPtr content);
+
 	private:
 
 		DockNodePtr m_rootNode;
@@ -91,6 +99,8 @@ namespace Silica {
 		Color m_titleBarColor;
 		FontAtlas* m_font = nullptr;
 
+		std::unordered_map<std::string, WidgetPtr> m_widgetRegistry;
+
 		void arrangeNode(DockNodePtr node, const Geometry& geo);
 		void drawNode(const DockNodePtr& node, DrawList& drawList) const;
 		void addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const;
@@ -102,6 +112,10 @@ namespace Silica {
 		bool removeLeafNode(DockNodePtr parent, DockNodePtr target);
 		void undockNode(DockNodePtr node, int tabIndex, const Vec2& mousePos);
 
+		// -- Serialzing --
+		void serializeNode(std::ofstream& out, DockNodePtr node, int depth);
+		DockNodePtr deserializeNode(std::ifstream& in);
+		static std::string trim(const std::string& str);
 	};
 
 }

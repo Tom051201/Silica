@@ -32,6 +32,7 @@ project "Silica"
 		}
 		runtime "Debug"
 		symbols "on"
+		targetsuffix "-Debug"
 
 	filter "configurations:Release"
 		defines {
@@ -40,6 +41,7 @@ project "Silica"
 		}
 		runtime "Release"
 		optimize "on"
+		targetsuffix "-Release"
 	
 	filter "configurations:Distribution"
 		defines {
@@ -48,3 +50,4 @@ project "Silica"
 		}
 		runtime "Release"
 		optimize "on"
+		targetsuffix "-Distribution"
