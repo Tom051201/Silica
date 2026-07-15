@@ -49,22 +49,37 @@ namespace Silica {
 
 		return EventReply::unhandled();
 	}
+
 	EventReply SSplitBox::onMouseButtonDown(const Geometry& geo, const Vec2& pos, MouseButton btn)  {
 		if (m_left && m_left->onMouseButtonDown(m_left->getAllocatedGeometry(), pos, btn).isHandled) return EventReply::handled();
 		if (m_right && m_right->onMouseButtonDown(m_right->getAllocatedGeometry(), pos, btn).isHandled) return EventReply::handled();
 
 		return EventReply::unhandled();
 	}
+
 	EventReply SSplitBox::onMouseButtonUp(const Geometry& geo, const Vec2& pos, MouseButton btn)  {
 		if (m_left && m_left->onMouseButtonUp(m_left->getAllocatedGeometry(), pos, btn).isHandled) return EventReply::handled();
 		if (m_right && m_right->onMouseButtonUp(m_right->getAllocatedGeometry(), pos, btn).isHandled) return EventReply::handled();
 
 		return EventReply::unhandled();
 	}
+
 	EventReply SSplitBox::onMouseWheel(const Geometry& geo, const Vec2& pos, float delta)  {
 		if (m_left && m_left->onMouseWheel(m_left->getAllocatedGeometry(), pos, delta).isHandled) return EventReply::handled();
 		if (m_right && m_right->onMouseWheel(m_right->getAllocatedGeometry(), pos, delta).isHandled) return EventReply::handled();
 
+		return EventReply::unhandled();
+	}
+
+	EventReply SSplitBox::onDragOver(const Geometry& geo, const Vec2& pos, const DragDropPayload& payload) {
+		if (m_left && m_left->onDragOver(m_left->getAllocatedGeometry(), pos, payload).isHandled) return EventReply::handled();
+		if (m_right && m_right->onDragOver(m_right->getAllocatedGeometry(), pos, payload).isHandled) return EventReply::handled();
+		return EventReply::unhandled();
+	}
+
+	EventReply SSplitBox::onDrop(const Geometry& geo, const Vec2& pos, const DragDropPayload& payload) {
+		if (m_left && m_left->onDrop(m_left->getAllocatedGeometry(), pos, payload).isHandled) return EventReply::handled();
+		if (m_right && m_right->onDrop(m_right->getAllocatedGeometry(), pos, payload).isHandled) return EventReply::handled();
 		return EventReply::unhandled();
 	}
 

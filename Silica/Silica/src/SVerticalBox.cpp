@@ -128,4 +128,24 @@ namespace Silica {
 		return m_slots;
 	}
 
+	EventReply SVerticalBox::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		for (const Slot& slot : m_slots) {
+			if (slot.child) {
+				EventReply reply = slot.child->onDragOver(slot.child->getAllocatedGeometry(), mousePos, payload);
+				if (reply.isHandled) return reply;
+			}
+		}
+		return EventReply::unhandled();
+	}
+
+	EventReply SVerticalBox::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		for (const Slot& slot : m_slots) {
+			if (slot.child) {
+				EventReply reply = slot.child->onDrop(slot.child->getAllocatedGeometry(), mousePos, payload);
+				if (reply.isHandled) return reply;
+			}
+		}
+		return EventReply::unhandled();
+	}
+
 }

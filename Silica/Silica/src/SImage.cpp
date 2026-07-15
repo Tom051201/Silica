@@ -33,4 +33,12 @@ namespace Silica {
 		outDrawList.popTextureID();
 	}
 
+	void SImage::setTextureID(TextureID id) {
+		m_textureId = id;
+	}
+
+	void SImage::setDesiredSize(const Vec2& size) {
+		m_desiredSize = size;
+	}
+
 }

@@ -74,4 +74,16 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
+	EventReply SBorderLayout::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_topBar && m_topBar->onDragOver(m_topBar->getAllocatedGeometry(), mousePos, payload).isHandled) return EventReply::handled();
+		if (m_contentArea) return m_contentArea->onDragOver(m_contentArea->getAllocatedGeometry(), mousePos, payload);
+		return EventReply::unhandled();
+	}
+
+	EventReply SBorderLayout::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_topBar && m_topBar->onDrop(m_topBar->getAllocatedGeometry(), mousePos, payload).isHandled) return EventReply::handled();
+		if (m_contentArea) return m_contentArea->onDrop(m_contentArea->getAllocatedGeometry(), mousePos, payload);
+		return EventReply::unhandled();
+	}
+
 }

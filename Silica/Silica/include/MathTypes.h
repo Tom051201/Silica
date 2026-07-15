@@ -4,6 +4,7 @@
 
 namespace Silica {
 
+	// ----- VEC2 -----
 	struct Vec2 {
 		float x = 0.0f;
 		float y = 0.0f;
@@ -29,6 +30,7 @@ namespace Silica {
 
 
 
+	// ----- VEC3 -----
 	struct Vec3 {
 		float x = 0.0f;
 		float y = 0.0f;
@@ -55,6 +57,7 @@ namespace Silica {
 
 
 
+	// ----- RECT -----
 	struct Rect {
 		float left = 0.0f;
 		float right = 0.0f;
@@ -80,10 +83,19 @@ namespace Silica {
 			);
 		}
 
+		constexpr inline bool operator==(const Rect& other) const {
+			return left == other.left && right == other.right && top == other.top && bottom == other.bottom;
+		}
+
+		constexpr inline bool operator!=(const Rect& other) const {
+			return !(*this == other);
+		}
+
 	};
 
 
 
+	// ----- EVENT REPLY -----
 	struct EventReply {
 		bool isHandled = false;
 
@@ -93,6 +105,7 @@ namespace Silica {
 
 
 
+	// ----- COLOR -----
 	struct Color {
 		uint32_t value;
 
@@ -113,6 +126,8 @@ namespace Silica {
 		static constexpr Color green() { return Color(0, 255, 0); }
 		static constexpr Color blue() { return Color(0, 0, 255); }
 		static constexpr Color transparent() { return Color(0, 0, 0, 0); }
+
+		constexpr void setAlpha(uint8_t a) { value = (value & 0x00FFFFFF) | (static_cast<uint32_t>(a) << 24); }
 
 	};
 

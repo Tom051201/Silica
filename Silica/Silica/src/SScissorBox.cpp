@@ -2,6 +2,10 @@
 
 namespace Silica {
 
+	void SScissorBox::construct(const Args& args) {
+		m_child = args.child;
+	}
+
 	void SScissorBox::computeDesiredSize() {
 		m_desiredSize = Vec2::zero();
 		if (m_child) {
@@ -53,6 +57,30 @@ namespace Silica {
 	EventReply SScissorBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_child && allocatedGeometry.contains(mousePos)) {
 			return m_child->onMouseButtonUp(m_child->getAllocatedGeometry(), mousePos, button);
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SScissorBox::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
+		if (m_child && allocatedGeometry.contains(mousePos)) {
+			return m_child->onMouseWheel(m_child->getAllocatedGeometry(), mousePos, scrollDelta);
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SScissorBox::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child && allocatedGeometry.contains(mousePos)) {
+			return m_child->onDragOver(m_child->getAllocatedGeometry(), mousePos, payload);
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SScissorBox::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child && allocatedGeometry.contains(mousePos)) {
+			return m_child->onDrop(m_child->getAllocatedGeometry(), mousePos, payload);
 		}
 
 		return EventReply::unhandled();

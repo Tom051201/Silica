@@ -11,10 +11,10 @@ namespace Silica {
 		m_text = args.initialText;
 		m_cursorIndex = (int)m_text.length();
 		m_hintText = args.hintText;
-		m_textColor = args.textColor.value_or(GetTheme().textMain);
-		m_backgroundColor = args.backgroundColor.value_or(GetTheme().buttonPressed);
-		m_focusedColor = args.focusedColor.value_or(GetTheme().buttonNormal);
-		m_font = args.font;
+		m_textColor = args.textColor.value_or(GetTheme().Text_Main);
+		m_backgroundColor = args.backgroundColor.value_or(GetTheme().Background_Input);
+		m_focusedColor = args.focusedColor.value_or(GetTheme().Element_Hover);
+		m_font = args.font ? args.font : GetTheme().Font_Default;
 		m_onTextChanged = args.onTextChanged;
 		m_onTextCommitted = args.onTextCommitted;
 	}
@@ -27,15 +27,14 @@ namespace Silica {
 		SWidget::arrangeChildren(allocatedGeometry);
 	}
 
-	void SEditableText::onDraw(DrawList & outDrawList, const Geometry & allocatedGeometry) const {
+	void SEditableText::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		if (!m_font) return;
 
 		bool hasFocus = (SWidget::getFocusedWidget() == this);
 
 		// -- Draw Background --
-		addRectToDrawList(outDrawList, allocatedGeometry, hasFocus ? m_focusedColor : m_backgroundColor);
+		outDrawList.addRect(allocatedGeometry, hasFocus ? m_focusedColor : m_backgroundColor);
 
-		// -- Push Clipping Rect For Text --
 		outDrawList.pushClipRect(Rect(
 			allocatedGeometry.position.x,
 			allocatedGeometry.position.x + allocatedGeometry.size.x,
@@ -43,65 +42,84 @@ namespace Silica {
 			allocatedGeometry.position.y + allocatedGeometry.size.y
 		));
 
-
-		// -- Draw Text --
 		std::string textToDraw = m_text.empty() && !hasFocus ? m_hintText : m_text;
-		Color drawColor = m_text.empty() && !hasFocus ? GetTheme().textDim : m_textColor;
+		Color drawColor = m_text.empty() && !hasFocus ? GetTheme().Text_Dim : m_textColor;
 
-		float cursorX = allocatedGeometry.position.x + 5.0f;
+		float cursorPixelOffset = 0.0f;
+		if (hasFocus && !m_text.empty()) {
+			for (int i = 0; i < m_cursorIndex && i < textToDraw.length(); ++i) {
+				cursorPixelOffset += m_font->getGlyph(textToDraw[i]).advanceX;
+			}
+		}
+
+		if (hasFocus) {
+			float maxVisibleWidth = allocatedGeometry.size.x - 10.0f;
+
+			if (cursorPixelOffset - m_scrollOffset < 0.0f) {
+				m_scrollOffset = cursorPixelOffset;
+				m_scrollOffset = cursorPixelOffset;
+			}
+			else if (cursorPixelOffset - m_scrollOffset > maxVisibleWidth) {
+				m_scrollOffset = cursorPixelOffset - maxVisibleWidth;
+			}
+		}
+		else {
+			m_scrollOffset = 0.0f;
+		}
+
+		float startX = allocatedGeometry.position.x + 5.0f - m_scrollOffset;
 		float baselineY = allocatedGeometry.position.y + 20.0f;
 
-		float blinkingCursorPixelX = cursorX;
+		// -- Draw Selection Highlight --
+		if (hasFocus && hasSelection() && !m_text.empty()) {
+			int startIdx = std::min(m_cursorIndex, m_selectionAnchor);
+			int endIdx = std::max(m_cursorIndex, m_selectionAnchor);
 
-		for (size_t i = 0; i < textToDraw.length(); ++i) {
-			char c = textToDraw[i];
-			const Glyph& g = m_font->getGlyph(c);
+			float pX1 = startX;
+			float pX2 = startX;
 
-			if (hasFocus && i == m_cursorIndex) {
-				blinkingCursorPixelX = cursorX;
-			}
+			for (int i = 0; i < startIdx; ++i) pX1 += m_font->getGlyph(textToDraw[i]).advanceX;
+			for (int i = 0; i < endIdx; ++i) pX2 += m_font->getGlyph(textToDraw[i]).advanceX;
 
-			if (g.size.x > 0 && g.size.y > 0) {
-				float x0 = cursorX + g.offset.x;
-				float y0 = baselineY + g.offset.y;
-				float x1 = x0 + g.size.x;
-				float y1 = y0 + g.size.y;
+			Color highlightColor = GetTheme().Accent_Primary;
+			highlightColor.setAlpha(120);
 
-				uint32_t startIndex = (uint32_t)outDrawList.vertices.size();
-				outDrawList.vertices.push_back({ {x0, y0}, {g.uvMin.x, g.uvMin.y}, drawColor });
-				outDrawList.vertices.push_back({ {x1, y0}, {g.uvMax.x, g.uvMin.y}, drawColor });
-				outDrawList.vertices.push_back({ {x1, y1}, {g.uvMax.x, g.uvMax.y}, drawColor });
-				outDrawList.vertices.push_back({ {x0, y1}, {g.uvMin.x, g.uvMax.y}, drawColor });
-
-				outDrawList.indices.push_back(startIndex + 0); outDrawList.indices.push_back(startIndex + 1); outDrawList.indices.push_back(startIndex + 2);
-				outDrawList.indices.push_back(startIndex + 0); outDrawList.indices.push_back(startIndex + 2); outDrawList.indices.push_back(startIndex + 3);
-
-				if (outDrawList.commands.empty()) outDrawList.commands.push_back({ 0, 0, 0 });
-				outDrawList.commands.back().indexCount += 6;
-			}
-			cursorX += g.advanceX;
+			Geometry selGeo = { {pX1, allocatedGeometry.position.y + 4.0f}, {pX2 - pX1, 22.0f} };
+			outDrawList.addRect(selGeo, highlightColor);
 		}
 
-		if (hasFocus && m_cursorIndex == textToDraw.length()) {
-			blinkingCursorPixelX = cursorX;
+		// -- Draw Text --
+		outDrawList.addText(m_font, textToDraw, { startX, baselineY }, drawColor);
+
+		// -- Draw Blinking Cursor --
+		float blinkingCursorPixelX = startX;
+		if (hasFocus) {
+			for (size_t i = 0; i < m_cursorIndex && i < textToDraw.length(); ++i) {
+				blinkingCursorPixelX += m_font->getGlyph(textToDraw[i]).advanceX;
+			}
 		}
 
-		// -- Draw Blinking Cursor if Focused --
 		auto now = std::chrono::steady_clock::now();
 		auto millis = std::chrono::duration_cast<std::chrono::milliseconds>(now.time_since_epoch()).count();
 
-		if (hasFocus && (millis / 500) % 2 == 0) {
+		bool forceCursor = m_isDragging || m_isShiftDown || m_isCtrlDown;
+		if (hasFocus && (forceCursor || (millis / 500) % 2 == 0)) {
+			float blinkingCursorPixelX = startX + cursorPixelOffset;
 			Geometry cursorGeo = { {blinkingCursorPixelX, allocatedGeometry.position.y + 5.0f}, {2.0f, 20.0f} };
-			addRectToDrawList(outDrawList, cursorGeo, m_textColor);
+			outDrawList.addRect(cursorGeo, m_textColor);
 		}
 
-		// -- Pop the Clipping Rect --
 		outDrawList.popClipRect();
 	}
 
 	EventReply SEditableText::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		if (allocatedGeometry.contains(mousePos)) {
+		if (allocatedGeometry.contains(mousePos) || m_isDragging) {
 			Platform::setCursor(Platform::Cursor::TextInput);
+		}
+
+		if (m_isDragging) {
+			m_cursorIndex = getIndexFromMousePos(allocatedGeometry, mousePos);
+			return EventReply::handled();
 		}
 
 		return EventReply::unhandled();
@@ -115,59 +133,56 @@ namespace Silica {
 			Platform::setCursor(Platform::Cursor::TextInput);
 
 			if (SWidget::getFocusedWidget() != this) {
-				m_cursorIndex = (int)m_text.length();
 				SWidget::setFocusedWidget(this);
 			}
 
-			// -- Calculate Cursor Position --
-			if (m_font && !m_text.empty()) {
-				float currentX = allocatedGeometry.position.x + 5.0f;
-				int newIndex = 0;
-				bool found = false;
+			m_cursorIndex = getIndexFromMousePos(allocatedGeometry, mousePos);
 
-				for (size_t i = 0; i < m_text.length(); ++i) {
-					const Glyph& g = m_font->getGlyph(m_text[i]);
-
-					// -- Snapping --
-					if (mousePos.x < currentX + (g.advanceX * 0.5f)) {
-						newIndex = (int)i;
-						found = true;
-						break;
-					}
-					currentX += g.advanceX;
-				}
-
-				if (!found) {
-					newIndex = (int)m_text.length();
-				}
-
-				m_cursorIndex = newIndex;
+			if (!m_isShiftDown) {
+				m_selectionAnchor = m_cursorIndex;
 			}
-			else {
-				m_cursorIndex = 0;
-			}
+
+			m_isDragging = true;
+			SWidget::setCapturedWidget(this);
 
 			return EventReply::handled();
 		}
 		else if (SWidget::getFocusedWidget() == this) {
 			if (m_onTextCommitted) m_onTextCommitted(m_text);
 			SWidget::setFocusedWidget(nullptr);
+			m_selectionAnchor = m_cursorIndex;
 		}
 
 		return EventReply::unhandled();
 	}
 
+	EventReply SEditableText::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		if (button == MouseButton::Left && m_isDragging) {
+			m_isDragging = false;
+			SWidget::setCapturedWidget(nullptr);
+			return EventReply::handled();
+		}
+		return EventReply::unhandled();
+	}
+
 	EventReply SEditableText::onChar(char c) {
 		if (c == '\b') { // Backspace
-			if (m_cursorIndex > 0) {
+			if (hasSelection()) {
+				deleteSelection();
+			}
+			else if (m_cursorIndex > 0) {
 				m_text.erase(m_cursorIndex - 1, 1);
 				m_cursorIndex--;
+				m_selectionAnchor = m_cursorIndex;
 				if (m_onTextChanged) m_onTextChanged(m_text);
 			}
 		}
 		else if (c >= 32 && c <= 126) {
+			if (hasSelection()) deleteSelection();
+
 			m_text.insert(m_cursorIndex, 1, c);
 			m_cursorIndex++;
+			m_selectionAnchor = m_cursorIndex;
 			if (m_onTextChanged) m_onTextChanged(m_text);
 		}
 
@@ -175,16 +190,49 @@ namespace Silica {
 	}
 
 	EventReply SEditableText::onKeyDown(Key key) {
+		if (key == Key::LeftShift || key == Key::RightShift) {
+			m_isShiftDown = true;
+			return EventReply::handled();
+		}
+
+		if (key == Key::LeftControl || key == Key::RightControl) {
+			m_isCtrlDown = true;
+			return EventReply::handled();
+		}
+
+		if (key == Key::A && m_isCtrlDown) {
+			m_selectionAnchor = 0;
+			m_cursorIndex = (int)m_text.length();
+			return EventReply::handled();
+		}
+
 		if (key == Key::Left) {
-			if (m_cursorIndex > 0) m_cursorIndex--;
+			if (m_isShiftDown) {
+				if (m_cursorIndex > 0) m_cursorIndex--;
+			}
+			else {
+				if (hasSelection()) m_cursorIndex = std::min(m_cursorIndex, m_selectionAnchor);
+				else if (m_cursorIndex > 0) m_cursorIndex--;
+				m_selectionAnchor = m_cursorIndex;
+			}
 			return EventReply::handled();
 		}
 		else if (key == Key::Right) {
-			if (m_cursorIndex < m_text.length()) m_cursorIndex++;
+			if (m_isShiftDown) {
+				if (m_cursorIndex < m_text.length()) m_cursorIndex++;
+			}
+			else {
+				if (hasSelection()) m_cursorIndex = std::max(m_cursorIndex, m_selectionAnchor);
+				else if (m_cursorIndex < m_text.length()) m_cursorIndex++;
+				m_selectionAnchor = m_cursorIndex;
+			}
 			return EventReply::handled();
 		}
 		else if (key == Key::Delete) {
-			if (m_cursorIndex < m_text.length()) {
+			if (hasSelection()) {
+				deleteSelection();
+			}
+			else if (m_cursorIndex < m_text.length()) {
 				m_text.erase(m_cursorIndex, 1);
 				if (m_onTextChanged) m_onTextChanged(m_text);
 			}
@@ -193,25 +241,55 @@ namespace Silica {
 		else if (key == Key::Enter) {
 			if (m_onTextCommitted) m_onTextCommitted(m_text);
 			SWidget::setFocusedWidget(nullptr);
+			m_selectionAnchor = m_cursorIndex;
 			return EventReply::handled();
 		}
 
 		return EventReply::unhandled();
 	}
 
-	void SEditableText::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
+	EventReply SEditableText::onKeyUp(Key key) {
+		if (key == Key::LeftShift || key == Key::RightShift) {
+			m_isShiftDown = false;
+			return EventReply::handled();
+		}
+		if (key == Key::LeftControl || key == Key::RightControl) {
+			m_isCtrlDown = false;
+			return EventReply::handled();
+		}
+		return EventReply::unhandled();
+	}
 
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
+	int SEditableText::getIndexFromMousePos(const Geometry& geo, const Vec2& pos) const {
+		if (!m_font || m_text.empty()) return 0;
 
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
+		float currentX = geo.position.x + 5.0f - m_scrollOffset;
 
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-		drawList.commands.back().indexCount += 6;
+		for (size_t i = 0; i < m_text.length(); ++i) {
+			const Glyph& g = m_font->getGlyph(m_text[i]);
+			if (pos.x < currentX + (g.advanceX * 0.5f)) {
+				return (int)i;
+			}
+			currentX += g.advanceX;
+		}
+		return (int)m_text.length();
+	}
+
+	bool SEditableText::hasSelection() const {
+		return m_selectionAnchor != m_cursorIndex;
+	}
+
+	void SEditableText::deleteSelection() {
+		if (!hasSelection()) return;
+
+		int start = std::min(m_cursorIndex, m_selectionAnchor);
+		int end = std::max(m_cursorIndex, m_selectionAnchor);
+
+		m_text.erase(start, end - start);
+		m_cursorIndex = start;
+		m_selectionAnchor = start;
+
+		if (m_onTextChanged) m_onTextChanged(m_text);
 	}
 
 }

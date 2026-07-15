@@ -7,8 +7,8 @@ namespace Silica {
 	void SScrollBox::construct(const Args& args) {
 		m_child = args.child;
 		m_scrollSpeed = args.scrollSpeed;
-		m_thumbColor = args.thumbColor.value_or(GetTheme().buttonNormal);
-		m_thumbDraggingColor = args.thumbDraggingColor.value_or(GetTheme().buttonHover);
+		m_thumbColor = args.thumbColor.value_or(GetTheme().Element_Normal);
+		m_thumbDraggingColor = args.thumbDraggingColor.value_or(GetTheme().Element_Hover);
 	}
 
 	void SScrollBox::computeDesiredSize() {
@@ -37,7 +37,8 @@ namespace Silica {
 			Geometry childGeo;
 			childGeo.position.x = allocatedGeometry.position.x;
 			childGeo.position.y = allocatedGeometry.position.y - m_scrollOffset;
-			childGeo.size.x = allocatedGeometry.size.x;
+			float reservedSpace = (m_maxScroll > 0.0f) ? 12.0f : 0.0f;
+			childGeo.size.x = allocatedGeometry.size.x - reservedSpace;
 			childGeo.size.y = childDesired.y;
 
 			m_child->arrangeChildren(childGeo);
@@ -46,9 +47,13 @@ namespace Silica {
 
 	void SScrollBox::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		if (m_child) {
+			float reservedSpace = (m_maxScroll > 0.0f) ? 12.0f : 0.0f;
+
 			Rect myRect(
-				allocatedGeometry.position.x, allocatedGeometry.position.x + allocatedGeometry.size.x,
-				allocatedGeometry.position.y, allocatedGeometry.position.y + allocatedGeometry.size.y
+				allocatedGeometry.position.x,
+				allocatedGeometry.position.x + allocatedGeometry.size.x - reservedSpace,
+				allocatedGeometry.position.y,
+				allocatedGeometry.position.y + allocatedGeometry.size.y
 			);
 
 			// -- Draw and Clip the Content --
@@ -75,7 +80,7 @@ namespace Silica {
 				thumbGeo.size.y = thumbHeight;
 
 				Color drawColor = m_isDraggingThumb ? m_thumbDraggingColor : m_thumbColor;
-				addRectToDrawList(outDrawList, thumbGeo, drawColor);
+				outDrawList.addRect(thumbGeo, drawColor);
 			}
 		}
 	}
@@ -150,21 +155,6 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	void SScrollBox::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
-
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-		drawList.commands.back().indexCount += 6;
-	}
-
 	Rect SScrollBox::getThumbRect(const Geometry& allocatedGeometry) const {
 		if (m_maxScroll <= 0.0f) return Rect(0, 0, 0, 0);
 
@@ -182,6 +172,22 @@ namespace Silica {
 			thumbY,
 			thumbY + thumbHeight
 		);
+	}
+
+	EventReply SScrollBox::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child && allocatedGeometry.contains(mousePos)) {
+			return m_child->onDragOver(m_child->getAllocatedGeometry(), mousePos, payload);
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SScrollBox::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child && allocatedGeometry.contains(mousePos)) {
+			return m_child->onDrop(m_child->getAllocatedGeometry(), mousePos, payload);
+		}
+
+		return EventReply::unhandled();
 	}
 
 }

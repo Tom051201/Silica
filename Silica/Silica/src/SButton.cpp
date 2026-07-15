@@ -6,9 +6,11 @@ namespace Silica {
 
 	void SButton::construct(const Args& args) {
 		m_padding = args.padding;
-		m_color = args.color.value_or(GetTheme().buttonNormal);
-		m_hoverColor = args.hoverColor.value_or(GetTheme().buttonHover);
-		m_pressedColor = args.pressedColor.value_or(GetTheme().buttonPressed);
+		m_isEnabled = args.enabled;
+		m_color = args.color.value_or(GetTheme().Element_Normal);
+		m_hoverColor = args.hoverColor.value_or(GetTheme().Element_Hover);
+		m_pressedColor = args.pressedColor.value_or(GetTheme().Element_Pressed);
+		m_disabledColor = args.disabledColor.value_or(GetTheme().Element_Disabled);
 		m_onClick = args.onClick;
 		m_child = args.child;
 	}
@@ -37,10 +39,10 @@ namespace Silica {
 	}
 
 	void SButton::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
-		Color drawColor = m_isPressed ? m_pressedColor : (m_isHovered ? m_hoverColor : m_color);
+		Color drawColor = !m_isEnabled ? m_disabledColor : (m_isPressed ? m_pressedColor : (m_isHovered ? m_hoverColor : m_color));
 
 		if (drawColor.a() > 0) {
-			addRectToDrawList(outDrawList, allocatedGeometry, drawColor);
+			outDrawList.addRect(allocatedGeometry, drawColor);
 		}
 
 		if (m_child) {
@@ -56,12 +58,18 @@ namespace Silica {
 	EventReply SButton::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		m_isHovered = allocatedGeometry.contains(mousePos);
 
-		if (!m_isHovered) {
+		if (!m_isHovered || !m_isEnabled) {
 			m_isPressed = false;
 		}
 
 		if (m_child) {
-			// TODO pass to children
+			Geometry childGeo;
+			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
+			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
+			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
+			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
+
+			m_child->onMouseMove(childGeo, mousePos);
 		}
 
 		return m_isHovered ? EventReply::handled() : EventReply::unhandled();
@@ -71,6 +79,8 @@ namespace Silica {
 		if (button != MouseButton::Left) return EventReply::unhandled();
 
 		if (allocatedGeometry.contains(mousePos)) {
+			if (!m_isEnabled) return EventReply::handled();
+
 			m_isPressed = true;
 			return EventReply::handled();
 		}
@@ -82,7 +92,7 @@ namespace Silica {
 
 		if (m_isPressed && allocatedGeometry.contains(mousePos)) {
 			m_isPressed = false;
-			if (m_onClick) {
+			if (m_isEnabled && m_onClick) {
 				return m_onClick();
 			}
 			return EventReply::handled();
@@ -92,21 +102,42 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	void SButton::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
+	void SButton::setEnabled(bool enabled) {
+		m_isEnabled = enabled;
+	}
 
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color }); // TL
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color }); // TR
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color }); // BR
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color }); // BL
+	bool SButton::isEnabled() const {
+		return m_isEnabled;
+	}
 
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
+	EventReply SButton::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child) {
+			Geometry childGeo;
+			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
+			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
+			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
+			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
 
-		if (drawList.commands.empty()) {
-			drawList.commands.push_back({ 0, 0, 0 });
+			EventReply reply = m_child->onDragOver(childGeo, mousePos, payload);
+			if (reply.isHandled) return reply;
 		}
-		drawList.commands.back().indexCount += 6;
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SButton::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child) {
+			Geometry childGeo;
+			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
+			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
+			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
+			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
+
+			EventReply reply = m_child->onDrop(childGeo, mousePos, payload);
+			if (reply.isHandled) return reply;
+		}
+
+		return EventReply::unhandled();
 	}
 
 }

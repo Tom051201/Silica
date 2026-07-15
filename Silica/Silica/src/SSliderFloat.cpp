@@ -11,10 +11,10 @@ namespace Silica {
 		m_min = args.minValue;
 		m_max = std::max(args.minValue, args.maxValue);
 		m_value = std::clamp(args.initialValue, m_min, m_max);
-		m_trackColor = args.trackColor.value_or(GetTheme().buttonPressed);
-		m_fillColor = args.fillColor.value_or(GetTheme().accentPrimary);
-		m_thumbColor = args.thumbColor.value_or(GetTheme().textDim);
-		m_thumbDraggingColor = args.thumbDraggingColor.value_or(GetTheme().textMain);
+		m_trackColor = args.trackColor.value_or(GetTheme().Element_Pressed);
+		m_fillColor = args.fillColor.value_or(GetTheme().Accent_Primary);
+		m_thumbColor = args.thumbColor.value_or(GetTheme().Text_Dim);
+		m_thumbDraggingColor = args.thumbDraggingColor.value_or(GetTheme().Text_Main);
 		m_onValueChanged = args.onValueChanged;
 	}
 
@@ -32,12 +32,12 @@ namespace Silica {
 		if (m_max > m_min) percentage = std::clamp((m_value - m_min) / (m_max - m_min), 0.0f, 1.0f); 
 
 		// -- Draw Background Track --
-		addRectToDrawList(outDrawList, allocatedGeometry, m_trackColor);
+		outDrawList.addRect(allocatedGeometry, m_trackColor);
 
 		// -- Draw Fill Track --
 		Geometry fillGeo = allocatedGeometry;
 		fillGeo.size.x = allocatedGeometry.size.x * percentage;
-		addRectToDrawList(outDrawList, fillGeo, m_fillColor);
+		outDrawList.addRect(fillGeo, m_fillColor);
 
 		// -- Draw Thumb Handle --
 		if (fillGeo.size.x > 2.0f) {
@@ -48,7 +48,7 @@ namespace Silica {
 			thumbGeo.size.y = fillGeo.size.y;
 
 			Color thumbColor = m_isDragging ? m_thumbDraggingColor : m_thumbColor;
-			addRectToDrawList(outDrawList, thumbGeo, thumbColor);
+			outDrawList.addRect(thumbGeo, thumbColor);
 		}
 	}
 
@@ -101,20 +101,6 @@ namespace Silica {
 				m_onValueChanged(m_value);
 			}
 		}
-	}
-
-	void SSliderFloat::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
-
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-		drawList.commands.back().indexCount += 6;
 	}
 
 }

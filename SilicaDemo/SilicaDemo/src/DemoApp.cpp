@@ -360,8 +360,8 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 	// -- Docking Workspace --
 	auto workspace = Silica::MakeWidget<Silica::SWorkspace>({
 		.initialTitle = "Viewport",
+		.font = &m_font,
 		.initialContent = viewportContent,
-		.font = &m_font
 	});
 
 	auto dock = workspace->getDockSpace();
@@ -415,9 +415,6 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 					// WIRE UP LOAD!
 					{ {5, 2}, Silica::MakeWidget<Silica::SButton>({
 						.padding = { 10.0f, 10.0f },
-						.color = Silica::GetTheme().buttonNormal,
-						.hoverColor = Silica::GetTheme().buttonHover,
-						.pressedColor = Silica::GetTheme().buttonPressed,
 						.onClick = [dock, nodeEditor]() {
 							dock->loadLayout("editor_layout.ini");
 							nodeEditor->loadGraph("blueprint_graph.ini");

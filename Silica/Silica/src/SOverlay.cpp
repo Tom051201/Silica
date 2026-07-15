@@ -76,4 +76,24 @@ namespace Silica {
 		}
 	}
 
+	EventReply SOverlay::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		for (auto it = m_children.rbegin(); it != m_children.rend(); ++it) {
+			if (*it) {
+				EventReply reply = (*it)->onDragOver((*it)->getAllocatedGeometry(), mousePos, payload);
+				if (reply.isHandled) return reply;
+			}
+		}
+		return EventReply::unhandled();
+	}
+
+	EventReply SOverlay::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		for (auto it = m_children.rbegin(); it != m_children.rend(); ++it) {
+			if (*it) {
+				EventReply reply = (*it)->onDrop((*it)->getAllocatedGeometry(), mousePos, payload);
+				if (reply.isHandled) return reply;
+			}
+		}
+		return EventReply::unhandled();
+	}
+
 }

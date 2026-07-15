@@ -9,7 +9,7 @@
 namespace Silica {
 
 	void SNodeEditor::construct(const Args& args) {
-		m_font = args.font;
+		m_font = args.font ? args.font : GetTheme().Font_Default;
 		m_onBackgroundContextClick = args.onBackgroundContextClick;
 		m_onNodeContextClick = args.onNodeContextClick;
 	}
@@ -27,6 +27,37 @@ namespace Silica {
 			Renderer::pushPopup(m_activeContextMenu, m_contextMenuGeometry, [this]() {
 				m_activeContextMenu = nullptr;
 			});
+		}
+
+		// -- Layout Embedded Pin Widgets --
+		for (auto& node : m_nodes) {
+			Vec2 screenPos = {
+				allocatedGeometry.position.x + m_panOffset.x + (node.position.x * m_zoom),
+				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * m_zoom)
+			};
+
+			float pinY = screenPos.y + (40.0f * m_zoom);
+
+			for (auto& pin : node.inputs) {
+				if (pin.inlineWidget) {
+					pin.inlineWidget->computeDesiredSize();
+					Vec2 desiredSize = pin.inlineWidget->getDesiredSize();
+					Vec2 scaledSize = { desiredSize.x * m_zoom, desiredSize.y * m_zoom };
+
+					float textOffset = getTextWidth(pin.name) + (15.0f * m_zoom);
+					Geometry widgetGeo;
+					widgetGeo.position = { screenPos.x + textOffset, pinY - (scaledSize.y * 0.25f) };
+					float maxWidgetWidth = (node.size.x * 0.6f * m_zoom) - textOffset;
+					float finalWidth = std::min(scaledSize.x, maxWidgetWidth);
+					widgetGeo.size = { finalWidth, scaledSize.y };
+
+					pin.inlineWidget->arrangeChildren(widgetGeo);
+
+					float requiredWidth = textOffset + scaledSize.x + (20.0f * m_zoom);
+					node.size.x = std::max(node.size.x, requiredWidth / m_zoom);
+				}
+				pinY += (20.0f * m_zoom);
+			}
 		}
 	}
 
@@ -62,6 +93,9 @@ namespace Silica {
 
 		// -- Pre-Compute Pin Screen Positions --
 		for (auto& node : const_cast<SNodeEditor*>(this)->m_nodes) {
+			float maxPins = (float)std::max(node.inputs.size(), node.outputs.size());
+			node.size.y = 40.0f + (maxPins * 20.0f) + 10.0f;
+
 			Vec2 screenPos = {
 				allocatedGeometry.position.x + m_panOffset.x + (node.position.x * m_zoom),
 				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * m_zoom)
@@ -108,7 +142,7 @@ namespace Silica {
 				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * m_zoom)
 			};
 
-			// Node Body And Header Backgrounds
+			// -- Node Body And Header Backgrounds --
 			Geometry nodeGeo = { screenPos, {node.size.x * m_zoom, node.size.y * m_zoom} };
 			Geometry headerGeo = { screenPos, {node.size.x * m_zoom, 24.0f * m_zoom} };
 
@@ -120,22 +154,26 @@ namespace Silica {
 			addRectToDrawList(outDrawList, nodeGeo, Color(45, 45, 45, 255));
 			addRectToDrawList(outDrawList, headerGeo, node.headerColor);
 
-			// Title
+			// -- Title --
 			drawText(outDrawList, node.title, { screenPos.x + (8.0f * m_zoom), screenPos.y + (16.0f * m_zoom) }, Color::white());
 
-			// Draw Inputs
+			// -- Draw Inputs --
 			float pinRadius = 4.0f * m_zoom;
 			float pinSize = 8.0f * m_zoom;
 			for (auto& pin : node.inputs) {
 				addRectToDrawList(outDrawList, { {pin.screenPosition.x - pinRadius, pin.screenPosition.y - pinRadius}, {pinSize, pinSize} }, pin.color);
-				drawText(outDrawList, pin.name, { pin.screenPosition.x + (12.0f * m_zoom), pin.screenPosition.y + pinRadius }, GetTheme().textMain);
+				drawText(outDrawList, pin.name, { pin.screenPosition.x + (12.0f * m_zoom), pin.screenPosition.y + pinRadius }, GetTheme().Text_Main);
+
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
+					pin.inlineWidget->onDraw(outDrawList, pin.inlineWidget->getAllocatedGeometry());
+				}
 			}
 
-			// Draw Outputs
+			// -- Draw Outputs --
 			for (auto& pin : node.outputs) {
 				addRectToDrawList(outDrawList, { {pin.screenPosition.x - pinRadius, pin.screenPosition.y - pinRadius}, {pinSize, pinSize} }, pin.color);
 				float textWidth = pin.name.length() * 7.0f * m_zoom;
-				drawText(outDrawList, pin.name, { pin.screenPosition.x - textWidth - (12.0f * m_zoom), pin.screenPosition.y + pinRadius }, GetTheme().textMain);
+				drawText(outDrawList, pin.name, { pin.screenPosition.x - textWidth - (12.0f * m_zoom), pin.screenPosition.y + pinRadius }, GetTheme().Text_Main);
 			}
 		}
 
@@ -164,6 +202,19 @@ namespace Silica {
 
 	EventReply SNodeEditor::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (!allocatedGeometry.contains(mousePos)) return EventReply::unhandled();
+
+		// -- Forward To Inline Widgets First --
+		for (auto& node : m_nodes) {
+			for (auto& pin : node.inputs) {
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
+					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
+					if (widgetGeo.contains(mousePos)) {
+						EventReply reply = pin.inlineWidget->onMouseButtonDown(widgetGeo, mousePos, button);
+						if (reply.isHandled) return reply;
+					}
+				}
+			}
+		}
 
 		// -- Panning --
 		if (button == MouseButton::Right) {
@@ -250,6 +301,19 @@ namespace Silica {
 	EventReply SNodeEditor::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		bool handled = false;
 
+		// -- Forward To Inline Widgets First --
+		for (auto& node : m_nodes) {
+			for (auto& pin : node.inputs) {
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
+					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
+					if (widgetGeo.contains(mousePos)) {
+						EventReply reply = pin.inlineWidget->onMouseMove(widgetGeo, mousePos);
+						if (reply.isHandled) return reply;
+					}
+				}
+			}
+		}
+
 		// -- Handle Panning --
 		if (m_isPanning) {
 			m_panOffset.x += (mousePos.x - m_lastMousePos.x);
@@ -283,17 +347,31 @@ namespace Silica {
 	}
 
 	EventReply SNodeEditor::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		// -- Forward To Inline Widgets First --
+		for (auto& node : m_nodes) {
+			for (auto& pin : node.inputs) {
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
+					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
+					if (widgetGeo.contains(mousePos)) {
+						EventReply reply = pin.inlineWidget->onMouseButtonUp(widgetGeo, mousePos, button);
+						if (reply.isHandled) return reply;
+					}
+				}
+			}
+		}
+
 		if (button == MouseButton::Left) {
 			m_draggingNodeID = -1;
 
 			if (m_draggingPinID != -1) {
 				PinID droppedPin = hitTestPins(mousePos);
 				if (droppedPin != -1 && droppedPin != m_draggingPinID) {
-					NodePin* p1 = findPin(m_draggingPinID);
-					NodePin* p2 = findPin(droppedPin);
+					GraphNode* node1 = nullptr;
+					GraphNode* node2 = nullptr;
+					NodePin* p1 = findPin(m_draggingPinID, &node1);
+					NodePin* p2 = findPin(droppedPin, &node2);
 
-					// -- Only Connect Output To Input --
-					if (p1 && p2 && p1->type != p2->type) {
+					if (p1 && p2 && p1->type != p2->type && node1 != node2) {
 						PinID outPin = (p1->type == PinType::Output) ? p1->id : p2->id;
 						PinID inPin = (p1->type == PinType::Input) ? p1->id : p2->id;
 						addLink((LinkID)m_links.size() + 1, outPin, inPin, p1->color);
@@ -342,6 +420,19 @@ namespace Silica {
 
 	EventReply SNodeEditor::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
 		if (!allocatedGeometry.contains(mousePos)) return EventReply::unhandled();
+
+		// -- Forward To Inline Widgets First --
+		for (auto& node : m_nodes) {
+			for (auto& pin : node.inputs) {
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
+					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
+					if (widgetGeo.contains(mousePos)) {
+						EventReply reply = pin.inlineWidget->onMouseWheel(widgetGeo, mousePos, scrollDelta);
+						if (reply.isHandled) return reply;
+					}
+				}
+			}
+		}
 
 		float zoomSpeed = 0.1f;
 		float oldZoom = m_zoom;
@@ -486,8 +577,8 @@ namespace Silica {
 		for (char c : text) {
 			const Glyph& g = m_font->getGlyph(c);
 			if (g.size.x > 0) {
-				float x0 = curX + (g.offset.x * m_zoom);
-				float y0 = pos.y + (g.offset.y * m_zoom);
+				float x0 = std::round(curX + (g.offset.x * m_zoom));
+				float y0 = std::round(pos.y + (g.offset.y * m_zoom));
 				float x1 = x0 + (g.size.x * m_zoom);
 				float y1 = y0 + (g.size.y * m_zoom);
 				uint32_t s = (uint32_t)drawList.vertices.size();
@@ -551,6 +642,18 @@ namespace Silica {
 
 	const std::vector<GraphLink>& SNodeEditor::getLinks() const {
 		return m_links;
+	}
+
+	Vec2 SNodeEditor::screenToCanvas(const Vec2& screenPos) const {
+		Vec2 localPos = { screenPos.x - m_allocatedGeometry.position.x, screenPos.y - m_allocatedGeometry.position.y };
+		return { (localPos.x - m_panOffset.x) / m_zoom, (localPos.y - m_panOffset.y) / m_zoom };
+	}
+
+	bool SNodeEditor::isPinConnected(PinID pinId) const {
+		for (const auto& link : m_links) {
+			if (link.startPin == pinId || link.endPin == pinId) return true;
+		}
+		return false;
 	}
 
 	void SNodeEditor::clear() {
@@ -677,6 +780,51 @@ namespace Silica {
 				}
 			}
 		}
+	}
+
+	float SNodeEditor::getTextWidth(const std::string& text) const {
+		if (!m_font) return 0.0f;
+		float width = 0.0f;
+		for (char c : text) width += m_font->getGlyph(c).advanceX;
+		return width * m_zoom;
+	}
+
+	EventReply SNodeEditor::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (!allocatedGeometry.contains(mousePos)) return EventReply::unhandled();
+
+		// -- Forward To Inline Widgets First --
+		for (auto& node : m_nodes) {
+			for (auto& pin : node.inputs) {
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
+					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
+					if (widgetGeo.contains(mousePos)) {
+						EventReply reply = pin.inlineWidget->onDragOver(widgetGeo, mousePos, payload);
+						if (reply.isHandled) return reply;
+					}
+				}
+			}
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SNodeEditor::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (!allocatedGeometry.contains(mousePos)) return EventReply::unhandled();
+
+		// -- Forward To Inline Widgets First --
+		for (auto& node : m_nodes) {
+			for (auto& pin : node.inputs) {
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
+					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
+					if (widgetGeo.contains(mousePos)) {
+						EventReply reply = pin.inlineWidget->onDrop(widgetGeo, mousePos, payload);
+						if (reply.isHandled) return reply;
+					}
+				}
+			}
+		}
+
+		return EventReply::unhandled();
 	}
 
 }

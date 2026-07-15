@@ -1,4 +1,5 @@
 #include "STreeNode.h"
+
 #include "Theme.h"
 #include "Renderer.h"
 
@@ -6,7 +7,7 @@ namespace Silica {
 
 	void STreeNode::construct(const Args& args) {
 		m_label = args.label;
-		m_font = args.font;
+		m_font = args.font ? args.font : GetTheme().Font_Default;
 		m_yOffset = args.yTextOffset;
 		m_isOpen = args.initiallyOpen;
 		m_isSelected = args.isSelected;
@@ -14,7 +15,9 @@ namespace Silica {
 		m_children = args.children;
 		m_onClicked = args.onClicked;
 		m_onDragStart = args.onDragStart;
+		m_onDragOver = args.onDragOver;
 		m_onDrop = args.onDrop;
+		m_onToggleOpen = args.onToggleOpen;
 	}
 
 	void STreeNode::computeDesiredSize() {
@@ -56,13 +59,32 @@ namespace Silica {
 
 		// -- Draw Selection / Hover Background
 		if (m_isDragged && m_isDragged()) {
-			addRectToDrawList(outDrawList, headerGeo, Color(150, 150, 150, 100));
+			outDrawList.addRect(headerGeo, Color(150, 150, 150, 100));
 		}
 		else if (m_isSelected) {
-			addRectToDrawList(outDrawList, headerGeo, GetTheme().accentPrimary);
+			outDrawList.addRect(headerGeo, GetTheme().Accent_Primary);
 		}
 		else if (m_isHovered) {
-			addRectToDrawList(outDrawList, headerGeo, Color(60, 60, 60, 255));
+			outDrawList.addRect(headerGeo, Color(60, 60, 60, 255));
+		}
+
+		// -- Draw Drop Zone Highlight --
+		if (SWidget::getDragHoveredWidget() == this) {
+			Color overlayColor = Silica::GetTheme().Accent_Primary;
+			overlayColor.setAlpha(60);
+			outDrawList.addRect(headerGeo, overlayColor);
+
+			Color highlightBorder = Silica::GetTheme().Border_Selected;
+			float t = Silica::GetTheme().Border_Thickness;
+			float x = headerGeo.position.x;
+			float y = headerGeo.position.y;
+			float w = headerGeo.size.x;
+			float h = headerGeo.size.y;
+
+			outDrawList.addRect({ {x, y}, {w, t} }, highlightBorder);
+			outDrawList.addRect({ {x, y + h - t}, {w, t} }, highlightBorder);
+			outDrawList.addRect({ {x, y + t}, {t, h - (t * 2)} }, highlightBorder);
+			outDrawList.addRect({ {x + w - t, y + t}, {t, h - (t * 2)} }, highlightBorder);
 		}
 
 		// -- Draw Chevron And Text --
@@ -83,7 +105,8 @@ namespace Silica {
 				textIndent = 20.0f;
 			}
 
-			drawText(outDrawList, m_label, { headerGeo.position.x + textIndent, headerGeo.position.y }, Color::white(), m_yOffset);
+			Vec2 textPos = { headerGeo.position.x + textIndent, headerGeo.position.y + m_yOffset };
+			outDrawList.addText(m_font, m_label, textPos, Color::white());
 		}
 
 		// -- Draw Children --
@@ -98,8 +121,10 @@ namespace Silica {
 		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
 		m_isHovered = headerGeo.contains(mousePos);
 
-		if (m_isLeftMouseDown && m_isHovered && m_onDragStart) {
+		if (m_isLeftMouseDown && m_onDragStart) {
 			m_onDragStart();
+			m_isLeftMouseDown = false;
+			SWidget::setCapturedWidget(nullptr);
 		}
 
 		if (m_isOpen) {
@@ -112,7 +137,6 @@ namespace Silica {
 	}
 
 	EventReply STreeNode::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-
 		if (m_isOpen) {
 			for (auto& child : m_children) {
 				if (child && child->getAllocatedGeometry().contains(mousePos)) {
@@ -126,31 +150,37 @@ namespace Silica {
 
 		if (headerGeo.contains(mousePos)) {
 			if (button == MouseButton::Left) {
-				m_isLeftMouseDown = true;
-
 				if (mousePos.x < headerGeo.position.x + m_indentSize) {
-					if (!m_children.empty()) m_isOpen = !m_isOpen;
+					if (!m_children.empty()) {
+						m_isOpen = !m_isOpen;
+						if (m_onToggleOpen) m_onToggleOpen(m_isOpen);
+					}
 				}
 				else {
-					if (m_onClicked) m_onClicked();
+					m_isLeftMouseDown = true;
+					SWidget::setCapturedWidget(this);
 				}
 				return EventReply::handled();
 			}
 		}
-
 		return EventReply::unhandled();
 	}
 
 	EventReply STreeNode::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-		m_isLeftMouseDown = false;
+		bool wasClicked = m_isLeftMouseDown;
+
+		if (m_isLeftMouseDown) {
+			m_isLeftMouseDown = false;
+			SWidget::setCapturedWidget(nullptr);
+		}
 
 		if (button != MouseButton::Left) return EventReply::unhandled();
 
 		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
 
-		if (headerGeo.contains(mousePos) && m_onDrop) {
-			EventReply reply = m_onDrop();
-			if (reply.isHandled) return reply;
+		if (wasClicked && headerGeo.contains(mousePos)) {
+			if (m_onClicked) m_onClicked();
+			return EventReply::handled();
 		}
 
 		// -- Route To Children If Open --
@@ -186,61 +216,6 @@ namespace Silica {
 		m_isSelected = selected;
 	}
 
-	void STreeNode::drawText(DrawList& drawList, const std::string& text, Vec2 pos, Color color, float yOffset) const {
-		if (!m_font || text.empty() || color.a() == 0) return;
-
-		float cursorX = pos.x;
-		float baselineY = pos.y + yOffset;
-
-		for (char c : text) {
-			const Glyph& g = m_font->getGlyph(c);
-
-			if (g.size.x > 0 && g.size.y > 0) {
-				float x0 = cursorX + g.offset.x;
-				float y0 = baselineY + g.offset.y;
-				float x1 = x0 + g.size.x;
-				float y1 = y0 + g.size.y;
-
-				uint32_t startIndex = (uint32_t)drawList.vertices.size();
-
-				drawList.vertices.push_back({ {x0, y0}, {g.uvMin.x, g.uvMin.y}, color }); // TL
-				drawList.vertices.push_back({ {x1, y0}, {g.uvMax.x, g.uvMin.y}, color }); // TR
-				drawList.vertices.push_back({ {x1, y1}, {g.uvMax.x, g.uvMax.y}, color }); // BR
-				drawList.vertices.push_back({ {x0, y1}, {g.uvMin.x, g.uvMax.y}, color }); // BL
-
-				drawList.indices.push_back(startIndex + 0);
-				drawList.indices.push_back(startIndex + 1);
-				drawList.indices.push_back(startIndex + 2);
-				drawList.indices.push_back(startIndex + 0);
-				drawList.indices.push_back(startIndex + 2);
-				drawList.indices.push_back(startIndex + 3);
-
-				if (drawList.commands.empty()) {
-					drawList.commands.push_back({ 0, 0, 0 });
-				}
-				drawList.commands.back().indexCount += 6;
-			}
-			cursorX += g.advanceX;
-		}
-	}
-
-	void STreeNode::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
-
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color }); // TL
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color }); // TR
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color }); // BR
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color }); // BL
-
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-
-		if (drawList.commands.empty()) {
-			drawList.commands.push_back({ 0, 0, 0 });
-		}
-		drawList.commands.back().indexCount += 6;
-	}
-
 	void STreeNode::drawTriangle(DrawList& drawList, const Vec2& center, float radius, Color color, bool pointDown) const {
 		uint32_t startIndex = (uint32_t)drawList.vertices.size();
 
@@ -267,6 +242,52 @@ namespace Silica {
 
 		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
 		drawList.commands.back().indexCount += 3;
+	}
+
+	EventReply STreeNode::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		// -- Route To Children If Open --
+		if (m_isOpen) {
+			for (auto& child : m_children) {
+				if (child && child->getAllocatedGeometry().contains(mousePos)) {
+					EventReply reply = child->onDragOver(child->getAllocatedGeometry(), mousePos, payload);
+					if (reply.isHandled) return reply;
+				}
+			}
+		}
+
+		// -- This Header --
+		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
+		if (headerGeo.contains(mousePos)) {
+			if (m_onDragOver) {
+				EventReply reply = m_onDragOver(payload);
+				if (reply.isHandled) {
+					SWidget::setDragHoveredWidget(this);
+				}
+			}
+			return EventReply::handled();
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply STreeNode::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		// -- Route To Children If Open --
+		if (m_isOpen) {
+			for (auto& child : m_children) {
+				if (child && child->getAllocatedGeometry().contains(mousePos)) {
+					EventReply reply = child->onDrop(child->getAllocatedGeometry(), mousePos, payload);
+					if (reply.isHandled) return reply;
+				}
+			}
+		}
+
+		// -- This Header --
+		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
+		if (headerGeo.contains(mousePos) && m_onDrop) {
+			return m_onDrop(payload);
+		}
+
+		return EventReply::unhandled();
 	}
 
 }

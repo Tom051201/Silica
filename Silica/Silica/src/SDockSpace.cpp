@@ -10,11 +10,11 @@
 namespace Silica {
 
 	void SDockSpace::construct(const Args& args) {
-		m_font = args.font;
+		m_font = args.font ? args.font : GetTheme().Font_Default;
 		m_rootNode = std::make_shared<SDockNode>();
 		m_rootNode->tabs = args.initialTabs;
 		m_onUndockWindow = args.onUndockWindow;
-		m_titleBarColor = args.titleBarColor.value_or(GetTheme().backgroundPanel);
+		m_titleBarColor = args.titleBarColor.value_or(GetTheme().Background_Panel);
 	}
 
 	void SDockSpace::computeDesiredSize() {
@@ -45,7 +45,7 @@ namespace Silica {
 	}
 
 	void SDockSpace::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
-		addRectToDrawList(outDrawList, allocatedGeometry, GetTheme().backgroundDarkWorkspace);
+		outDrawList.addRect(allocatedGeometry, GetTheme().Surface_Tertiary);
 
 		if (m_rootNode) {
 			drawNode(m_rootNode, outDrawList);
@@ -60,7 +60,7 @@ namespace Silica {
 			else if (m_previewZone == DockZone::Top) pGeo.size.y /= 2.0f;
 			else if (m_previewZone == DockZone::Bottom) { pGeo.size.y /= 2.0f; pGeo.position.y += pGeo.size.y; }
 
-			addRectToDrawList(outDrawList, pGeo, Color(70, 130, 180, 128));
+			outDrawList.addRect(pGeo, Color(70, 130, 180, 128));
 		}
 	}
 
@@ -126,8 +126,19 @@ namespace Silica {
 			// -- Check if Hit a Tab --
 			auto hitTab = hitTestTab(m_rootNode, mousePos);
 			if (hitTab.first) {
-				m_pressedTabNode = hitTab.first;
-				m_pressedTabIndex = hitTab.second;
+				DockNodePtr hitNode = hitTab.first;
+				int hitIndex = hitTab.second;
+				m_focusedNode = hitNode;
+
+				// -- Check If X Clicked --
+				if (hitNode->tabs[hitIndex].closeRect.contains(mousePos)) {
+					closeTab(hitNode, hitIndex);
+					return EventReply::handled();
+				}
+
+				// -- Tab Body Clicked --
+				m_pressedTabNode = hitNode;
+				m_pressedTabIndex = hitIndex;
 				m_pressedMousePos = mousePos;
 				SWidget::setCapturedWidget(this);
 				return EventReply::handled();
@@ -146,6 +157,7 @@ namespace Silica {
 			if (!node) return EventReply::unhandled();
 			if (node->splitDirection == SplitDirection::None) {
 				if (!node->tabs.empty() && node->activeTab < node->tabs.size() && node->tabs[node->activeTab].content && node->tabs[node->activeTab].content->getAllocatedGeometry().contains(mousePos)) {
+					m_focusedNode = node;
 					return node->tabs[node->activeTab].content->onMouseButtonDown(node->tabs[node->activeTab].content->getAllocatedGeometry(), mousePos, button);
 				}
 			}
@@ -198,7 +210,7 @@ namespace Silica {
 	}
 
 	EventReply SDockSpace::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
-		// -- Rout The Wheel Input to UI Widgets --
+		// -- Route The Wheel Input to UI Widgets --
 		std::function<EventReply(DockNodePtr)> routeWheel = [&](DockNodePtr node) -> EventReply {
 			if (!node) return EventReply::unhandled();
 			if (node->splitDirection == SplitDirection::None) {
@@ -236,6 +248,10 @@ namespace Silica {
 			node->child[1]->tabs.push_back({ title, newContent, Rect() });
 		}
 		node->tabs.clear();
+	}
+
+	DockNodePtr SDockSpace::getRootNode() const {
+		return m_rootNode; 
 	}
 
 	void SDockSpace::updateDragDropPreview(const Vec2& mousePos, bool isDragging) {
@@ -289,9 +305,28 @@ namespace Silica {
 		if (node->splitDirection == SplitDirection::None) {
 			node->titleBarRect = Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y, geo.position.y + 20.0f);
 
-			float tabWidth = 120.0f;
+			std::vector<float> desiredWidths(node->tabs.size());
+			float totalDesiredWidth = 0.0f;
 			for (size_t i = 0; i < node->tabs.size(); ++i) {
-				node->tabs[i].hitRect = Rect(geo.position.x + i * tabWidth, geo.position.x + (i + 1) * tabWidth, geo.position.y, geo.position.y + 20.0f);
+				float textWidth = 0.0f;
+				if (m_font) {
+					for (char c : node->tabs[i].title) textWidth += m_font->getGlyph(c).advanceX;
+				}
+				desiredWidths[i] = std::max(100.0f, textWidth + 46.0f);
+				totalDesiredWidth += desiredWidths[i];
+			}
+
+			float availableWidth = geo.size.x;
+			float scale = 1.0f;
+			if (totalDesiredWidth > availableWidth && availableWidth > 0.0f) {
+				scale = availableWidth / totalDesiredWidth;
+			}
+
+			float currentX = geo.position.x;
+			for (size_t i = 0; i < node->tabs.size(); ++i) {
+				float finalWidth = std::max(40.0f, desiredWidths[i] * scale);
+				node->tabs[i].hitRect = Rect(currentX, currentX + finalWidth, geo.position.y, geo.position.y + 20.0f);
+				currentX += finalWidth;
 			}
 
 			Geometry contentGeo;
@@ -299,8 +334,15 @@ namespace Silica {
 			contentGeo.size = { geo.size.x, geo.size.y - 20.0f };
 			if (contentGeo.size.y < 0) contentGeo.size.y = 0;
 
-			if (!node->tabs.empty() && node->activeTab < node->tabs.size() && node->tabs[node->activeTab].content) {
-				node->tabs[node->activeTab].content->arrangeChildren(contentGeo);
+			for (size_t i = 0; i < node->tabs.size(); ++i) {
+				if (node->tabs[i].content) {
+					if (i == node->activeTab) {
+						node->tabs[i].content->arrangeChildren(contentGeo);
+					}
+					else {
+						node->tabs[i].content->arrangeChildren({ {0.0f, 0.0f}, {0.0f, 0.0f} });
+					}
+				}
 			}
 		}
 		// -- Left Right --
@@ -340,12 +382,14 @@ namespace Silica {
 			if (!node->tabs.empty()) {
 				// -- Draw Entire Title Bar Background --
 				Geometry tbGeo = { {node->titleBarRect.left, node->titleBarRect.top}, {node->titleBarRect.right - node->titleBarRect.left, node->titleBarRect.bottom - node->titleBarRect.top} };
-				addRectToDrawList(drawList, tbGeo, GetTheme().backgroundDarkWorkspace);
+				drawList.addRect(tbGeo, GetTheme().Surface_Tertiary);
 
 				// -- Draw Each Tab --
 				for (size_t i = 0; i < node->tabs.size(); ++i) {
 					Geometry tGeo = { {node->tabs[i].hitRect.left, node->tabs[i].hitRect.top}, {node->tabs[i].hitRect.right - node->tabs[i].hitRect.left, node->tabs[i].hitRect.bottom - node->tabs[i].hitRect.top} };
-					Color tColor = (i == node->activeTab) ? m_titleBarColor : GetTheme().backgroundDarkWorkspace;
+					Color inactiveTabColor = GetTheme().Background_Panel;
+					Color activeTabColor = GetTheme().Surface_Primary;
+					Color tColor = (i == node->activeTab) ? activeTabColor : inactiveTabColor;
 
 					if (i != node->activeTab) {
 						tColor = Color(
@@ -356,63 +400,107 @@ namespace Silica {
 						);
 					}
 
-					addRectToDrawList(drawList, tGeo, tColor);
+					drawList.addRect(tGeo, tColor);
 
 					// -- Draw Tab Title --
 					if (m_font && !node->tabs[i].title.empty()) {
-						float cursorX = tGeo.position.x + 10.0f;
-						float baselineY = tGeo.position.y + 15.0f;
-						for (char c : node->tabs[i].title) {
-							const Glyph& g = m_font->getGlyph(c);
-							if (g.size.x > 0 && g.size.y > 0) {
-								float x0 = cursorX + g.offset.x;
-								float y0 = baselineY + g.offset.y;
-								float x1 = x0 + g.size.x;
-								float y1 = y0 + g.size.y;
-								uint32_t startIndex = (uint32_t)drawList.vertices.size();
-								drawList.vertices.push_back({ {x0, y0}, {g.uvMin.x, g.uvMin.y}, GetTheme().textMain });
-								drawList.vertices.push_back({ {x1, y0}, {g.uvMax.x, g.uvMin.y}, GetTheme().textMain });
-								drawList.vertices.push_back({ {x1, y1}, {g.uvMax.x, g.uvMax.y}, GetTheme().textMain });
-								drawList.vertices.push_back({ {x0, y1}, {g.uvMin.x, g.uvMax.y}, GetTheme().textMain });
-								drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-								drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-								if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-								drawList.commands.back().indexCount += 6;
-							}
-							cursorX += g.advanceX;
-						}
+						Vec2 textPos = { tGeo.position.x + 10.0f, tGeo.position.y + 15.0f };
+
+						Rect textClip = Rect(tGeo.position.x, tGeo.position.x + tGeo.size.x - 25.0f, tGeo.position.y, tGeo.position.y + tGeo.size.y);
+						drawList.pushClipRect(textClip);
+						drawList.addText(m_font, node->tabs[i].title, textPos, GetTheme().Text_Main);
+						drawList.popClipRect();
+					}
+
+					// -- Close X --
+					float closeBoxSize = 16.0f;
+					Rect closeRect = Rect(
+						tGeo.position.x + tGeo.size.x - closeBoxSize - 5.0f,
+						tGeo.position.x + tGeo.size.x - 5.0f,
+						tGeo.position.y + 2.0f,
+						tGeo.position.y + 2.0f + closeBoxSize
+					);
+					node->tabs[i].closeRect = closeRect;
+
+					bool isHoveringX = closeRect.contains(Renderer::getMousePosition());
+
+					if (isHoveringX) {
+						Geometry highlightGeo = { {closeRect.left, closeRect.top}, {closeBoxSize, closeBoxSize} };
+						drawList.addRect(highlightGeo, Color(255, 255, 255, 30));
+					}
+
+					Vec2 center = { std::round(closeRect.left + (closeBoxSize * 0.5f)), std::round(closeRect.top + (closeBoxSize * 0.5f)) };
+					float crossSize = 3.0f;
+
+					Color crossColor = isHoveringX ? GetTheme().Accent_Danger : GetTheme().Text_Dim;
+					if (m_font) {
+						const Glyph& g = m_font->getGlyph('x');
+						Vec2 xPos = {
+							std::round(closeRect.left + (closeBoxSize * 0.5f) - (g.advanceX * 0.5f)),
+							std::round(closeRect.top + (closeBoxSize * 0.5f) - (g.size.y * 0.5f) - g.offset.y)
+						};
+						drawList.addText(m_font, "x", xPos, crossColor);
+					}
+
+					// -- Draw Focus Outline Around Active Tab --
+					if (node == m_focusedNode && i == node->activeTab) {
+						float t = 1.0f;
+						Color c = GetTheme().Border_Selected;
+
+						drawList.addRect({ {tGeo.position.x, tGeo.position.y}, {tGeo.size.x, t} }, c); // Top
+						drawList.addRect({ {tGeo.position.x, tGeo.position.y + t}, {t, tGeo.size.y - t} }, c); // Left
+						drawList.addRect({ {tGeo.position.x + tGeo.size.x - t, tGeo.position.y + t}, {t, tGeo.size.y - t} }, c); // Right
 					}
 				}
 
+				// -- Draw Content --
 				if (node->activeTab < node->tabs.size() && node->tabs[node->activeTab].content) {
 					node->tabs[node->activeTab].content->onDraw(drawList, node->tabs[node->activeTab].content->getAllocatedGeometry());
+				}
+
+				// -- Draw The Content Border & Split Top Line --
+				if (node == m_focusedNode) {
+					Geometry geo = node->allocatedGeometry;
+					float t = 1.0f;
+					Color c = GetTheme().Border_Selected;
+
+					float contentY = node->titleBarRect.bottom;
+					float contentHeight = geo.size.y - (contentY - geo.position.y);
+
+					drawList.addRect({ {geo.position.x, contentY}, {t, contentHeight} }, c); // Left
+					drawList.addRect({ {geo.position.x + geo.size.x - t, contentY}, {t, contentHeight} }, c); // Right
+					drawList.addRect({ {geo.position.x, geo.position.y + geo.size.y - t}, {geo.size.x, t} }, c); // Bottom
+
+					if (node->activeTab < node->tabs.size()) {
+						float activeTabLeft = node->tabs[node->activeTab].hitRect.left;
+						float activeTabRight = node->tabs[node->activeTab].hitRect.right;
+
+						// -- Left Side Of Gap --
+						if (activeTabLeft > geo.position.x) {
+							float width = activeTabLeft - geo.position.x;
+							drawList.addRect({ {geo.position.x, contentY}, {width, t} }, c);
+						}
+
+						// -- Right Side Of Gap --
+						if (activeTabRight < geo.position.x + geo.size.x) {
+							float width = (geo.position.x + geo.size.x) - activeTabRight;
+							drawList.addRect({ {activeTabRight, contentY}, {width, t} }, c);
+						}
+					}
 				}
 			}
 		}
 		else {
 			Geometry splitterGeo = { {node->splitterRect.left, node->splitterRect.top}, {node->splitterRect.right - node->splitterRect.left, node->splitterRect.bottom - node->splitterRect.top} };
-			Color sColor = GetTheme().backgroundWindow;
-			if (m_draggingNode == node) sColor = GetTheme().accentPrimary;
+			Color sColor = GetTheme().Background_Panel;
+			if (m_draggingNode == node) sColor = GetTheme().Accent_Primary;
 			else if (m_hoveredNode == node) sColor = Color(120, 120, 120, 255);
-			addRectToDrawList(drawList, splitterGeo, sColor);
+			drawList.addRect(splitterGeo, sColor);
 
 			// -- Recurse --
 			if (node->child[0]) drawNode(node->child[0], drawList);
 			if (node->child[1]) drawNode(node->child[1], drawList);
 		}
-	}
-
-	void SDockSpace::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-		drawList.commands.back().indexCount += 6;
 	}
 
 	DockNodePtr SDockSpace::hitTestSplitter(const DockNodePtr& node, const Vec2& mousePos) {
@@ -487,8 +575,7 @@ namespace Silica {
 		if (node->activeTab >= node->tabs.size()) node->activeTab = std::max(0, (int)node->tabs.size() - 1);
 
 		if (node->tabs.empty()) {
-			if (node == m_rootNode) { /* Empty root, do nothing */ }
-			else { removeLeafNode(m_rootNode, node); }
+			if (node != m_rootNode) { removeLeafNode(m_rootNode, node); }
 		}
 
 		if (m_onUndockWindow) m_onUndockWindow(savedTab.title, savedTab.content, mousePos);
@@ -510,6 +597,8 @@ namespace Silica {
 		std::string header;
 		std::getline(in, header);
 		if (header != "[Silica_Layout_v1]") return;
+
+		m_focusedNode = nullptr;
 
 		m_rootNode = deserializeNode(in);
 		in.close();
@@ -592,6 +681,143 @@ namespace Silica {
 
 	void SDockSpace::registerTab(const std::string& title, WidgetPtr content) {
 		m_widgetRegistry[title] = content;
+	}
+
+	void SDockSpace::closeTab(DockNodePtr node, int tabIndex) {
+		if (!node || tabIndex < 0 || tabIndex >= node->tabs.size()) return;
+
+		node->tabs.erase(node->tabs.begin() + tabIndex);
+
+		if (node->activeTab >= node->tabs.size()) {
+			node->activeTab = std::max(0, (int)node->tabs.size() - 1);
+		}
+
+		if (node->tabs.empty()) {
+			if (node == m_rootNode) {}
+			else {
+				removeLeafNode(m_rootNode, node);
+			}
+		}
+	}
+
+	void SDockSpace::openTab(const std::string& title) {
+		// -- Check If Already Open --
+		std::function<bool(DockNodePtr)> isTabOpen = [&](DockNodePtr node) -> bool {
+			if (!node) return false;
+			if (node->splitDirection == SplitDirection::None) {
+				for (const auto& tab : node->tabs) {
+					if (tab.title == title) return true;
+				}
+				return false;
+			}
+			return isTabOpen(node->child[0]) || isTabOpen(node->child[1]);
+			};
+
+		if (isTabOpen(m_rootNode)) return;
+
+		// -- Fetch From Registry --
+		auto it = m_widgetRegistry.find(title);
+		if (it == m_widgetRegistry.end()) return;
+
+		WidgetPtr content = it->second;
+
+		// -- Smart Placement --
+		DockNodePtr targetNode = nullptr;
+		float maxArea = -1.0f;
+
+		std::function<void(DockNodePtr)> findBestNode = [&](DockNodePtr n) {
+			if (!n) return;
+			if (n->splitDirection == SplitDirection::None) {
+				float area = n->allocatedGeometry.size.x * n->allocatedGeometry.size.y;
+				if (area > maxArea) {
+					maxArea = area;
+					targetNode = n;
+				}
+			}
+			else {
+				findBestNode(n->child[0]);
+				findBestNode(n->child[1]);
+			}
+		};
+
+		findBestNode(m_rootNode);
+		if (!targetNode) targetNode = m_rootNode;
+
+		targetNode->tabs.push_back({ title, content, Rect(), Rect() });
+		targetNode->activeTab = (int)targetNode->tabs.size() - 1;
+	}
+
+	std::vector<std::string> SDockSpace::getRegisteredTabNames() const {
+		std::vector<std::string> names;
+		for (const auto& pair : m_widgetRegistry) {
+			names.push_back(pair.first);
+		}
+		std::sort(names.begin(), names.end());
+		return names;
+	}
+
+	EventReply SDockSpace::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		// -- Route The Drag Hover to UI Widgets --
+		std::function<EventReply(DockNodePtr)> routeDrag = [&](DockNodePtr node) -> EventReply {
+			if (!node) return EventReply::unhandled();
+
+			if (node->splitDirection == SplitDirection::None) {
+				if (!node->tabs.empty() && node->activeTab < node->tabs.size() && node->tabs[node->activeTab].content && node->tabs[node->activeTab].content->getAllocatedGeometry().contains(mousePos)) {
+					return node->tabs[node->activeTab].content->onDragOver(node->tabs[node->activeTab].content->getAllocatedGeometry(), mousePos, payload);
+				}
+			}
+			else {
+				EventReply rep = routeDrag(node->child[1]);
+				if (rep.isHandled) return rep;
+				return routeDrag(node->child[0]);
+			}
+			return EventReply::unhandled();
+		};
+
+		return routeDrag(m_rootNode);
+	}
+
+	EventReply SDockSpace::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		// -- Route The Drop to UI Widgets --
+		std::function<EventReply(DockNodePtr)> routeDrop = [&](DockNodePtr node) -> EventReply {
+			if (!node) return EventReply::unhandled();
+
+			if (node->splitDirection == SplitDirection::None) {
+				if (!node->tabs.empty() && node->activeTab < node->tabs.size() && node->tabs[node->activeTab].content && node->tabs[node->activeTab].content->getAllocatedGeometry().contains(mousePos)) {
+					return node->tabs[node->activeTab].content->onDrop(node->tabs[node->activeTab].content->getAllocatedGeometry(), mousePos, payload);
+				}
+			}
+			else {
+				EventReply rep = routeDrop(node->child[1]);
+				if (rep.isHandled) return rep;
+				return routeDrop(node->child[0]);
+			}
+			return EventReply::unhandled();
+		};
+
+		return routeDrop(m_rootNode);
+	}
+
+	void SDockSpace::focusTab(const std::string& title) {
+		std::function<bool(DockNodePtr)> findAndFocus = [&](DockNodePtr node) -> bool {
+			if (!node) return false;
+
+			if (node->splitDirection == SplitDirection::None) {
+				for (size_t i = 0; i < node->tabs.size(); ++i) {
+					if (node->tabs[i].title == title) {
+						node->activeTab = (int)i;
+						m_focusedNode = node;
+						return true;
+					}
+				}
+				return false;
+			}
+
+			if (findAndFocus(node->child[0])) return true;
+			return findAndFocus(node->child[1]);
+		};
+
+		findAndFocus(m_rootNode);
 	}
 
 }

@@ -2,10 +2,12 @@
 
 #include <algorithm>
 
+#include "Theme.h"
+
 namespace Silica {
 
 	void SWorkspace::construct(const Args& args) {
-		m_font = args.font;
+		m_font = args.font ? args.font : GetTheme().Font_Default;
 
 		m_dockSpace = MakeWidget<SDockSpace>({
 			.initialTabs = { { args.initialTitle, args.initialContent, Rect() } },
@@ -115,6 +117,42 @@ namespace Silica {
 		};
 
 		m_floatingWindows.push_back(window);
+	}
+
+	EventReply SWorkspace::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		// -- Floating Windows --
+		for (auto it = m_floatingWindows.rbegin(); it != m_floatingWindows.rend(); ++it) {
+			if ((*it)->onDragOver((*it)->getAllocatedGeometry(), mousePos, payload).isHandled) {
+				return EventReply::handled();
+			}
+		}
+
+		// -- DockSpace --
+		if (m_dockSpace) {
+			return m_dockSpace->onDragOver(m_dockSpace->getAllocatedGeometry(), mousePos, payload);
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SWorkspace::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		// -- Floating Windows --
+		for (auto it = m_floatingWindows.rbegin(); it != m_floatingWindows.rend(); ++it) {
+			if ((*it)->onDrop((*it)->getAllocatedGeometry(), mousePos, payload).isHandled) {
+				return EventReply::handled();
+			}
+		}
+
+		// -- DockSpace --
+		if (m_dockSpace) {
+			return m_dockSpace->onDrop(m_dockSpace->getAllocatedGeometry(), mousePos, payload);
+		}
+
+		return EventReply::unhandled();
+	}
+
+	std::shared_ptr<SDockSpace> SWorkspace::getDockSpace() const {
+		return m_dockSpace;
 	}
 
 }

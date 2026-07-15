@@ -10,11 +10,11 @@ namespace Silica {
 		m_position = args.initialPosition;
 		m_size = args.initialSize;
 		m_content = args.content;
-		m_font = args.font;
-		m_backgroundColor = args.backgroundColor.value_or(GetTheme().backgroundWindow);
-		m_titleBarColor = args.titleBarColor.value_or(GetTheme().backgroundPanel);
-		m_titleBarDraggingColor = args.titleBarDraggingColor.value_or(GetTheme().accentPrimary);
-		m_titleTextColor = args.titleTextColor.value_or(GetTheme().textMain);
+		m_font = args.font ? args.font : GetTheme().Font_Default;
+		m_backgroundColor = args.backgroundColor.value_or(GetTheme().Background_Panel);
+		m_titleBarColor = args.titleBarColor.value_or(GetTheme().Background_Input);
+		m_titleBarDraggingColor = args.titleBarDraggingColor.value_or(GetTheme().Accent_Primary);
+		m_titleTextColor = args.titleTextColor.value_or(GetTheme().Text_Main);
 	}
 
 	void SWindow::computeDesiredSize() {
@@ -38,37 +38,15 @@ namespace Silica {
 
 	void SWindow::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		// -- Draw Window Background --
-		addRectToDrawList(outDrawList, m_allocatedGeometry, m_backgroundColor);
+		outDrawList.addRect(m_allocatedGeometry, m_backgroundColor);
 
 		// -- Draw Title Bar --
 		Color titleColor = m_isDragging ? m_titleBarDraggingColor : m_titleBarColor;
-		addRectToDrawList(outDrawList, { m_position, {m_size.x, 30.0f} }, titleColor);
+		outDrawList.addRect({ m_position, {m_size.x, 30.0f} }, titleColor);
 
-		// -- Draw Title Text --
 		if (m_font && !m_title.empty()) {
-			float cursorX = m_position.x + 10.0f;
-			float baselineY = m_position.y + 20.0f;
-			for (char c : m_title) {
-				const Glyph& g = m_font->getGlyph(c);
-				if (g.size.x > 0 && g.size.y > 0) {
-					float x0 = cursorX + g.offset.x;
-					float y0 = baselineY + g.offset.y;
-					float x1 = x0 + g.size.x;
-					float y1 = y0 + g.size.y;
-
-					uint32_t startIndex = (uint32_t)outDrawList.vertices.size();
-					outDrawList.vertices.push_back({ {x0, y0}, {g.uvMin.x, g.uvMin.y}, m_titleTextColor });
-					outDrawList.vertices.push_back({ {x1, y0}, {g.uvMax.x, g.uvMin.y}, m_titleTextColor });
-					outDrawList.vertices.push_back({ {x1, y1}, {g.uvMax.x, g.uvMax.y}, m_titleTextColor });
-					outDrawList.vertices.push_back({ {x0, y1}, {g.uvMin.x, g.uvMax.y}, m_titleTextColor });
-
-					outDrawList.indices.push_back(startIndex + 0); outDrawList.indices.push_back(startIndex + 1); outDrawList.indices.push_back(startIndex + 2);
-					outDrawList.indices.push_back(startIndex + 0); outDrawList.indices.push_back(startIndex + 2); outDrawList.indices.push_back(startIndex + 3);
-					if (outDrawList.commands.empty()) outDrawList.commands.push_back({ 0, 0, 0 });
-					outDrawList.commands.back().indexCount += 6;
-				}
-				cursorX += g.advanceX;
-			}
+			Vec2 textPos = { m_position.x + 10.0f, m_position.y + 20.0f };
+			outDrawList.addText(m_font, m_title, textPos, m_titleTextColor);
 		}
 
 		// -- Draw Content --
@@ -137,18 +115,41 @@ namespace Silica {
 		return Rect(m_position.x, m_position.x + m_size.x, m_position.y, m_position.y + 30.0f);
 	}
 
-	void SWindow::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
+	bool SWindow::isDragging() const {
+		return m_isDragging;
+	}
 
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
+	void SWindow::setContent(WidgetPtr content) {
+		m_content = content;
+	}
 
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-		drawList.commands.back().indexCount += 6;
+	WidgetPtr SWindow::getContent() const {
+		return m_content;
+	}
+
+	const std::string& SWindow::getTitle() const {
+		return m_title;
+	}
+
+	EventReply SWindow::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
+		if (m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
+			return m_content->onMouseWheel(m_content->getAllocatedGeometry(), mousePos, scrollDelta);
+		}
+		return EventReply::unhandled();
+	}
+
+	EventReply SWindow::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
+			return m_content->onDragOver(m_content->getAllocatedGeometry(), mousePos, payload);
+		}
+		return EventReply::unhandled();
+	}
+
+	EventReply SWindow::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_content && m_content->getAllocatedGeometry().contains(mousePos)) {
+			return m_content->onDrop(m_content->getAllocatedGeometry(), mousePos, payload);
+		}
+		return EventReply::unhandled();
 	}
 
 }

@@ -27,15 +27,15 @@ namespace Silica {
 		// -- Draw SV Box (Saturation / Value) --
 		Color pureHue = hsvToRgb(m_h, 1.0f, 1.0f, 1.0f);
 		Geometry svGeo = { {svRect.left, svRect.top}, {svRect.getWidth(), svRect.getHeight()} };
-		addGradientRect(outDrawList, svGeo, Color::white(), pureHue, Color::black(), Color::black());
+		outDrawList.addGradientRect(svGeo, Color::white(), pureHue, Color::black(), Color::black());
 
 		// -- Draw Picker Reticle Inside SV Box --
 		Vec2 reticlePos(
 			svRect.left + (m_s * svRect.getWidth()),
 			svRect.top + ((1.0f - m_v) * svRect.getHeight())
 		);
-		addRectToDrawList(outDrawList, { {reticlePos.x - 3.0f, reticlePos.y - 3.0f}, {6.0f, 6.0f} }, Color::black());
-		addRectToDrawList(outDrawList, { {reticlePos.x - 2.0f, reticlePos.y - 2.0f}, {4.0f, 4.0f} }, Color::white());
+		outDrawList.addRect({ {reticlePos.x - 3.0f, reticlePos.y - 3.0f}, {6.0f, 6.0f} }, Color::black());
+		outDrawList.addRect({ {reticlePos.x - 2.0f, reticlePos.y - 2.0f}, {4.0f, 4.0f} }, Color::white());
 
 
 		// -- Draw Hue Bar --
@@ -48,23 +48,23 @@ namespace Silica {
 
 		for (int i = 0; i < segments; ++i) {
 			Geometry segGeo = { {hueRect.left + i * segWidth, hueRect.top}, {segWidth, hueRect.getHeight()} };
-			addGradientRect(outDrawList, segGeo, hueColors[i], hueColors[i + 1], hueColors[i + 1], hueColors[i]);
+			outDrawList.addGradientRect(segGeo, hueColors[i], hueColors[i + 1], hueColors[i + 1], hueColors[i]);
 		}
 
 		// -- Draw Hue Thumb --
 		float hueX = hueRect.left + (m_h * hueRect.getWidth());
-		addRectToDrawList(outDrawList, { {hueX - 2.0f, hueRect.top - 2.0f}, {4.0f, hueRect.getHeight() + 4.0f} }, Color::white());
+		outDrawList.addRect({ {hueX - 2.0f, hueRect.top - 2.0f}, {4.0f, hueRect.getHeight() + 4.0f} }, Color::white());
 
 
 		// -- Draw Alpha Bar --
 		Color alphaZero = hsvToRgb(m_h, m_s, m_v, 0.0f);
 		Color alphaFull = hsvToRgb(m_h, m_s, m_v, 1.0f);
 		Geometry alphaGeo = { {alphaRect.left, alphaRect.top}, {alphaRect.getWidth(), alphaRect.getHeight()} };
-		addGradientRect(outDrawList, alphaGeo, alphaZero, alphaFull, alphaFull, alphaZero);
+		outDrawList.addGradientRect(alphaGeo, alphaZero, alphaFull, alphaFull, alphaZero);
 
 		// -- Draw Alpha Thumb --
 		float alphaX = alphaRect.left + (m_a * alphaRect.getWidth());
-		addRectToDrawList(outDrawList, { {alphaX - 2.0f, alphaRect.top - 2.0f}, {4.0f, alphaRect.getHeight() + 4.0f} }, Color::white());
+		outDrawList.addRect({ {alphaX - 2.0f, alphaRect.top - 2.0f}, {4.0f, alphaRect.getHeight() + 4.0f} }, Color::white());
 	}
 
 	void SColorPicker::updateFromMouse(const Geometry& allocatedGeometry, const Vec2& mousePos) {
@@ -140,27 +140,6 @@ namespace Silica {
 
 	Rect SColorPicker::getAlphaBarRect(const Geometry& geo) const {
 		return Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y + geo.size.y - 20.0f, geo.position.y + geo.size.y);
-	}
-
-
-
-	// ----- Gradient Hardware Renderer -----
-	void SColorPicker::addGradientRect(DrawList& drawList, const Geometry& geo, Color tl, Color tr, Color br, Color bl) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
-
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, tl });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, tr });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, br });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, bl });
-
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-		drawList.commands.back().indexCount += 6;
-	}
-
-	void SColorPicker::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		addGradientRect(drawList, geo, color, color, color, color);
 	}
 
 

@@ -13,6 +13,8 @@ namespace Silica {
 		m_openToRight = args.openToRight;
 		m_showArrow = args.showArrow;
 		m_openAtMousePos = args.openAtMousePos;
+		m_arrowNormal = args.arrowNormal.value_or(GetTheme().Text_Dim);
+		m_arrowHover = args.arrowHover.value_or(GetTheme().Text_Main);
 	}
 
 	void SMenuAnchor::computeDesiredSize() {
@@ -65,23 +67,20 @@ namespace Silica {
 			m_anchorContent->onDraw(outDrawList, m_anchorContent->getAllocatedGeometry());
 		}
 
-		// --- Draw The Arrow ---
+		// -- Draw The Arrow --
 		if (m_showArrow) {
 			Vec2 arrowCenter = {
 				allocatedGeometry.position.x + allocatedGeometry.size.x - 12.0f,
 				allocatedGeometry.position.y + (allocatedGeometry.size.y * 0.5f)
 			};
 
-			drawTriangle(outDrawList, arrowCenter, 6.0f, GetTheme().textMain);
+			Color arrowColor = m_isHovered ? m_arrowHover : m_arrowNormal;
+			drawTriangle(outDrawList, arrowCenter, 6.0f, arrowColor);
 		}
 	}
 
 	EventReply SMenuAnchor::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		if (m_anchorContent) {
-			m_anchorContent->onMouseMove(m_anchorContent->getAllocatedGeometry(), mousePos);
-		}
-
-		Vec2 realMouse = Renderer::s_mousePosition;
+		Vec2 realMouse = Renderer::getMousePosition();
 		bool isHoveringAnchorReal = allocatedGeometry.contains(realMouse);
 
 		if (m_openOnHover && isHoveringAnchorReal && !m_isOpen) {
@@ -95,8 +94,19 @@ namespace Silica {
 			}
 		}
 
-		bool isHoveringVisually = allocatedGeometry.contains(mousePos);
-		return isHoveringVisually ? EventReply::handled() : EventReply::unhandled();
+		m_isHovered = allocatedGeometry.contains(mousePos) || m_isOpen;
+
+		Vec2 childMousePos = mousePos;
+		if (m_isOpen) {
+			childMousePos = { allocatedGeometry.position.x + 1.0f, allocatedGeometry.position.y + 1.0f };
+		}
+
+		EventReply childReply = EventReply::unhandled();
+		if (m_anchorContent) {
+			childReply = m_anchorContent->onMouseMove(m_anchorContent->getAllocatedGeometry(), childMousePos);
+		}
+
+		return m_isHovered ? EventReply::handled() : childReply;
 	}
 
 	EventReply SMenuAnchor::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
@@ -144,6 +154,13 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
+	EventReply SMenuAnchor::onMouseWheel(const Geometry& geom, const Vec2& pos, float delta) {
+		if (m_anchorContent) {
+			return m_anchorContent->onMouseWheel(m_anchorContent->getAllocatedGeometry(), pos, delta);
+		}
+		return EventReply::unhandled();
+	}
+
 	void SMenuAnchor::drawTriangle(DrawList& drawList, const Vec2& center, float radius, Color color) const {
 		uint32_t startIndex = (uint32_t)drawList.vertices.size();
 
@@ -161,6 +178,28 @@ namespace Silica {
 
 		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
 		drawList.commands.back().indexCount += 3;
+	}
+
+	void SMenuAnchor::closeMenu() {
+		m_isOpen = false;
+	}
+
+	bool SMenuAnchor::isOpen() const {
+		return m_isOpen;
+	}
+
+	EventReply SMenuAnchor::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_anchorContent && m_anchorContent->getAllocatedGeometry().contains(mousePos)) {
+			return m_anchorContent->onDragOver(m_anchorContent->getAllocatedGeometry(), mousePos, payload);
+		}
+		return EventReply::unhandled();
+	}
+
+	EventReply SMenuAnchor::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_anchorContent && m_anchorContent->getAllocatedGeometry().contains(mousePos)) {
+			return m_anchorContent->onDrop(m_anchorContent->getAllocatedGeometry(), mousePos, payload);
+		}
+		return EventReply::unhandled();
 	}
 
 }

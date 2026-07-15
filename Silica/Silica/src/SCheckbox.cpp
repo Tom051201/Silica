@@ -7,8 +7,8 @@ namespace Silica {
 
 	void SCheckBox::construct(const Args& args) {
 		m_isChecked = args.initialCheck;
-		m_backgroundColor = args.backgroundColor.value_or(GetTheme().buttonPressed);
-		m_checkColor = args.backgroundColor.value_or(GetTheme().accentPrimary);
+		m_backgroundColor = args.backgroundColor.value_or(GetTheme().Background_Input);
+		m_checkColor = args.checkColor.value_or(GetTheme().Accent_Primary);
 		m_onCheckChanged = args.onCheckChanged;
 	}
 
@@ -22,17 +22,17 @@ namespace Silica {
 
 	void SCheckBox::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		// -- Draw Background --
-		addRectToDrawList(outDrawList, allocatedGeometry, m_backgroundColor);
+		outDrawList.addRect(allocatedGeometry, m_backgroundColor);
 
-		// -- Draw the inner "Check" --
+		// -- Draw Inner Check --
 		if (m_isChecked) {
 			Geometry checkGeo;
-			checkGeo.position.x = allocatedGeometry.position.x + 4.0f;
-			checkGeo.position.y = allocatedGeometry.position.y + 4.0f;
-			checkGeo.size.x = allocatedGeometry.size.x - 8.0f;
-			checkGeo.size.y = allocatedGeometry.size.y - 8.0f;
-
-			addRectToDrawList(outDrawList, checkGeo, m_checkColor);
+			float pad = GetTheme().Element_Padding;
+			checkGeo.position.x = allocatedGeometry.position.x + pad;
+			checkGeo.position.y = allocatedGeometry.position.y + pad;
+			checkGeo.size.x = allocatedGeometry.size.x - (pad * 2.0f);
+			checkGeo.size.y = allocatedGeometry.size.y - (pad * 2.0f);
+			outDrawList.addRect(checkGeo, m_checkColor);
 		}
 	}
 
@@ -50,17 +50,4 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
-	void SCheckBox::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color) const {
-		uint32_t startIndex = (uint32_t)drawList.vertices.size();
-
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0.0f, 0.0f}, color });
-
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 1); drawList.indices.push_back(startIndex + 2);
-		drawList.indices.push_back(startIndex + 0); drawList.indices.push_back(startIndex + 2); drawList.indices.push_back(startIndex + 3);
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-		drawList.commands.back().indexCount += 6;
-	}
 }

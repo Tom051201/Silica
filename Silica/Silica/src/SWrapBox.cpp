@@ -8,10 +8,17 @@ namespace Silica {
 	}
 
 	void SWrapBox::computeDesiredSize() {
-		m_desiredSize = { 0.0f, 0.0f };
+		float cachedHeight = m_desiredSize.y;
+		float maxChildWidth = 0.0f;
+
 		for (auto& child : m_children) {
-			if (child) child->computeDesiredSize();
+			if (child) {
+				child->computeDesiredSize();
+				maxChildWidth = std::max(maxChildWidth, child->getDesiredSize().x);
+			}
 		}
+
+		m_desiredSize = { maxChildWidth, cachedHeight };
 	}
 
 	void SWrapBox::arrangeChildren(const Geometry& allocatedGeometry) {
@@ -75,6 +82,26 @@ namespace Silica {
 
 	void SWrapBox::addChild(WidgetPtr child) {
 		m_children.push_back(child);
+	}
+
+	EventReply SWrapBox::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		for (auto& child : m_children) {
+			if (child) {
+				EventReply reply = child->onDragOver(child->getAllocatedGeometry(), mousePos, payload);
+				if (reply.isHandled) return reply;
+			}
+		}
+		return EventReply::unhandled();
+	}
+
+	EventReply SWrapBox::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		for (auto& child : m_children) {
+			if (child) {
+				EventReply reply = child->onDrop(child->getAllocatedGeometry(), mousePos, payload);
+				if (reply.isHandled) return reply;
+			}
+		}
+		return EventReply::unhandled();
 	}
 
 }

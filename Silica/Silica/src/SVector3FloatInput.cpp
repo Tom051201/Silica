@@ -84,4 +84,16 @@ namespace Silica {
 		return m_rootAssembly->onMouseButtonUp(allocatedGeometry, mousePos, button);
 	}
 
+	EventReply SVector3FloatInput::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
+		return m_rootAssembly->onMouseWheel(allocatedGeometry, mousePos, scrollDelta);
+	}
+
+	EventReply SVector3FloatInput::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		return m_rootAssembly->onDragOver(allocatedGeometry, mousePos, payload);
+	}
+
+	EventReply SVector3FloatInput::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		return m_rootAssembly->onDrop(allocatedGeometry, mousePos, payload);
+	}
+
 }

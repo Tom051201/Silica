@@ -48,4 +48,20 @@ namespace Silica {
 		return EventReply::unhandled();
 	}
 
+	EventReply SScrollCatcher::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child) {
+			return m_child->onDragOver(m_child->getAllocatedGeometry(), mousePos, payload);
+		}
+
+		return EventReply::unhandled();
+	}
+
+	EventReply SScrollCatcher::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child) {
+			return m_child->onDrop(m_child->getAllocatedGeometry(), mousePos, payload);
+		}
+
+		return EventReply::unhandled();
+	}
+
 }
