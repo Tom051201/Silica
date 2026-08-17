@@ -69,6 +69,13 @@ namespace Silica {
 		m_rootAssembly->onDraw(outDrawList, allocatedGeometry);
 	}
 
+	void SVector3Input::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_rootAssembly) {
+			m_rootAssembly->setRenderScale(scale);
+		}
+	}
+
 	EventReply SVector3Input::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		return m_rootAssembly->onMouseMove(allocatedGeometry, mousePos);
 	}

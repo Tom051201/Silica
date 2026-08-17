@@ -64,6 +64,24 @@ namespace Silica {
 		}
 	}
 
+	void SDockSpace::setRenderScale(float scale) {
+		m_renderScale = scale;
+
+		std::function<void(DockNodePtr)> propagateScale = [&](DockNodePtr node) {
+			if (!node) return;
+			if (node->splitDirection == SplitDirection::None) {
+				for (auto& tab : node->tabs) {
+					if (tab.content) tab.content->setRenderScale(scale);
+				}
+			}
+			else {
+				propagateScale(node->child[0]);
+				propagateScale(node->child[1]);
+			}
+		};
+		propagateScale(m_rootNode);
+	}
+
 	EventReply SDockSpace::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		// -- Handle Tab Tearing --
 		if (m_pressedTabNode) {
@@ -303,16 +321,24 @@ namespace Silica {
 		node->allocatedGeometry = geo;
 
 		if (node->splitDirection == SplitDirection::None) {
-			node->titleBarRect = Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y, geo.position.y + 20.0f);
+			float titleBarHeight = 20.0f * m_renderScale;
+			node->titleBarRect = Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y, geo.position.y + titleBarHeight);
 
 			std::vector<float> desiredWidths(node->tabs.size());
 			float totalDesiredWidth = 0.0f;
 			for (size_t i = 0; i < node->tabs.size(); ++i) {
+				std::string displayTitle = node->tabs[i].title;
+				size_t hashPos = displayTitle.find("##");
+				if (hashPos != std::string::npos) {
+					displayTitle = displayTitle.substr(0, hashPos);
+				}
+
 				float textWidth = 0.0f;
 				if (m_font) {
-					for (char c : node->tabs[i].title) textWidth += m_font->getGlyph(c).advanceX;
+					for (char c : displayTitle) textWidth += m_font->getGlyph(c).advanceX;
 				}
-				desiredWidths[i] = std::max(100.0f, textWidth + 46.0f);
+
+				desiredWidths[i] = std::max(100.0f * m_renderScale, textWidth + (46.0f * m_renderScale));
 				totalDesiredWidth += desiredWidths[i];
 			}
 
@@ -324,7 +350,7 @@ namespace Silica {
 
 			float currentX = geo.position.x;
 			for (size_t i = 0; i < node->tabs.size(); ++i) {
-				float finalWidth = std::max(40.0f, desiredWidths[i] * scale);
+				float finalWidth = std::max(40.0f * m_renderScale, desiredWidths[i] * scale);
 				node->tabs[i].hitRect = Rect(currentX, currentX + finalWidth, geo.position.y, geo.position.y + 20.0f);
 				currentX += finalWidth;
 			}
@@ -404,21 +430,28 @@ namespace Silica {
 
 					// -- Draw Tab Title --
 					if (m_font && !node->tabs[i].title.empty()) {
-						Vec2 textPos = { tGeo.position.x + 10.0f, tGeo.position.y + 15.0f };
+						Vec2 textPos = { tGeo.position.x + (10.0f * m_renderScale), tGeo.position.y + (15.0f * m_renderScale) };
+
+						std::string displayTitle = node->tabs[i].title;
+						size_t hashPos = displayTitle.find("##");
+						if (hashPos != std::string::npos) {
+							displayTitle = displayTitle.substr(0, hashPos);
+						}
 
 						Rect textClip = Rect(tGeo.position.x, tGeo.position.x + tGeo.size.x - 25.0f, tGeo.position.y, tGeo.position.y + tGeo.size.y);
 						drawList.pushClipRect(textClip);
-						drawList.addText(m_font, node->tabs[i].title, textPos, GetTheme().Text_Main);
+						drawList.addText(m_font, displayTitle, textPos, GetTheme().Text_Main);
+
 						drawList.popClipRect();
 					}
 
 					// -- Close X --
-					float closeBoxSize = 16.0f;
+					float closeBoxSize = 16.0f * m_renderScale;
 					Rect closeRect = Rect(
-						tGeo.position.x + tGeo.size.x - closeBoxSize - 5.0f,
-						tGeo.position.x + tGeo.size.x - 5.0f,
-						tGeo.position.y + 2.0f,
-						tGeo.position.y + 2.0f + closeBoxSize
+						tGeo.position.x + tGeo.size.x - closeBoxSize - (5.0f * m_renderScale),
+						tGeo.position.x + tGeo.size.x - (5.0f * m_renderScale),
+						tGeo.position.y + (2.0f * m_renderScale),
+						tGeo.position.y + (2.0f * m_renderScale) + closeBoxSize
 					);
 					node->tabs[i].closeRect = closeRect;
 
@@ -627,10 +660,12 @@ namespace Silica {
 
 	DockNodePtr SDockSpace::deserializeNode(std::ifstream& in) {
 		std::string line;
-		if (!std::getline(in, line)) return nullptr;
+		while (std::getline(in, line)) {
+			line = trim(line);
+			if (!line.empty()) break;
+		}
 
-		line = trim(line);
-		if (line.empty()) return deserializeNode(in);
+		if (line.empty()) return nullptr;
 
 		DockNodePtr node = std::make_shared<SDockNode>();
 
@@ -818,6 +853,25 @@ namespace Silica {
 		};
 
 		findAndFocus(m_rootNode);
+	}
+
+	bool SDockSpace::isTabVisible(const std::string& title) const {
+		std::function<bool(DockNodePtr)> checkVisible = [&](DockNodePtr node) -> bool {
+			if (!node) return false;
+
+			if (node->splitDirection == SplitDirection::None) {
+				if (!node->tabs.empty() && node->activeTab >= 0 && node->activeTab < node->tabs.size()) {
+					if (node->tabs[node->activeTab].title == title) {
+						return true;
+					}
+				}
+				return false;
+			}
+
+			return checkVisible(node->child[0]) || checkVisible(node->child[1]);
+		};
+
+		return checkVisible(m_rootNode);
 	}
 
 }

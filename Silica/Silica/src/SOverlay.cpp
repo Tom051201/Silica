@@ -14,6 +14,9 @@ namespace Silica {
 		for (auto& child : m_children) {
 			if (child) {
 				child->computeDesiredSize();
+				Vec2 childSize = child->getDesiredSize();
+				if (childSize.x > m_desiredSize.x) m_desiredSize.x = childSize.x;
+				if (childSize.y > m_desiredSize.y) m_desiredSize.y = childSize.y;
 			}
 		}
 	}
@@ -31,6 +34,15 @@ namespace Silica {
 		}
 	}
 
+	void SOverlay::setRenderScale(float scale) {
+		m_renderScale = scale;
+		for (auto& child : m_children) {
+			if (child) {
+				child->setRenderScale(scale);
+			}
+		}
+	}
+
 	EventReply SOverlay::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		for (auto it = m_children.rbegin(); it != m_children.rend(); it++) {
 			if (*it && (*it)->onMouseButtonDown((*it)->getAllocatedGeometry(), mousePos, button).isHandled) {
@@ -41,14 +53,23 @@ namespace Silica {
 	}
 
 	EventReply SOverlay::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		EventReply finalReply = EventReply::unhandled();
+		bool eventHandled = false;
+
 		for (auto it = m_children.rbegin(); it != m_children.rend(); it++) {
 			if (*it) {
-				EventReply reply = (*it)->onMouseMove((*it)->getAllocatedGeometry(), mousePos);
-				if (reply.isHandled) finalReply = EventReply::handled();
+				if (!eventHandled) {
+					EventReply reply = (*it)->onMouseMove((*it)->getAllocatedGeometry(), mousePos);
+					if (reply.isHandled) {
+						eventHandled = true;
+					}
+				}
+				else {
+					(*it)->onMouseMove((*it)->getAllocatedGeometry(), Vec2(-9999.0f, -9999.0f));
+				}
 			}
 		}
-		return finalReply;
+
+		return eventHandled ? EventReply::handled() : EventReply::unhandled();
 	}
 
 	EventReply SOverlay::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {

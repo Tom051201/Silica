@@ -11,7 +11,10 @@ namespace Silica {
 		m_yOffset = args.yTextOffset;
 		m_isOpen = args.initiallyOpen;
 		m_isSelected = args.isSelected;
+		m_isLeaf = args.isLeaf;
+		m_isEmpty = args.isEmpty;
 		m_isDragged = args.isDragged;
+		m_leadingWidget = args.leadingWidget;
 		m_children = args.children;
 		m_onClicked = args.onClicked;
 		m_onDragStart = args.onDragStart;
@@ -21,14 +24,21 @@ namespace Silica {
 	}
 
 	void STreeNode::computeDesiredSize() {
-		m_desiredSize = Vec2(100.0f, m_headerHeight);
+		float scaledHeaderHeight = m_headerHeight * m_renderScale;
+		float scaledIndentSize = m_indentSize * m_renderScale;
+
+		m_desiredSize = Vec2(100.0f * m_renderScale, scaledHeaderHeight);
+
+		if (m_leadingWidget) {
+			m_leadingWidget->computeDesiredSize();
+		}
 
 		if (m_isOpen) {
 			for (auto& child : m_children) {
 				if (child) {
 					child->computeDesiredSize();
 					m_desiredSize.y += child->getDesiredSize().y;
-					m_desiredSize.x = std::max(m_desiredSize.x, child->getDesiredSize().x + m_indentSize);
+					m_desiredSize.x = std::max(m_desiredSize.x, child->getDesiredSize().x + scaledIndentSize);
 				}
 			}
 		}
@@ -37,15 +47,31 @@ namespace Silica {
 	void STreeNode::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 
+		float scaledHeaderHeight = m_headerHeight * m_renderScale;
+		float scaledIndentSize = m_indentSize * m_renderScale;
+
+		// -- Layout The Icon --
+		if (m_leadingWidget) {
+			float textIndent = 20.0f * m_renderScale;
+			Vec2 lwSize = m_leadingWidget->getDesiredSize();
+
+			float lwY = allocatedGeometry.position.y + (scaledHeaderHeight - lwSize.y) * 0.5f;
+			Geometry lwGeo = {
+				{allocatedGeometry.position.x + textIndent, lwY},
+				lwSize
+			};
+			m_leadingWidget->arrangeChildren(lwGeo);
+		}
+
 		if (m_isOpen) {
-			float currentY = allocatedGeometry.position.y + m_headerHeight;
+			float currentY = allocatedGeometry.position.y + scaledHeaderHeight;
 
 			for (auto& child : m_children) {
 				if (child) {
 					float childHeight = child->getDesiredSize().y;
 					Geometry childGeo = {
-						{allocatedGeometry.position.x + m_indentSize, currentY},
-						{allocatedGeometry.size.x - m_indentSize, childHeight}
+						{allocatedGeometry.position.x + scaledIndentSize, currentY},
+						{allocatedGeometry.size.x - scaledIndentSize, childHeight}
 					};
 					child->arrangeChildren(childGeo);
 					currentY += childHeight;
@@ -55,18 +81,13 @@ namespace Silica {
 	}
 
 	void STreeNode::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
-		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
+		float scaledHeaderHeight = m_headerHeight * m_renderScale;
+		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, scaledHeaderHeight} };
 
 		// -- Draw Selection / Hover Background
-		if (m_isDragged && m_isDragged()) {
-			outDrawList.addRect(headerGeo, Color(150, 150, 150, 100));
-		}
-		else if (m_isSelected) {
-			outDrawList.addRect(headerGeo, GetTheme().Accent_Primary);
-		}
-		else if (m_isHovered) {
-			outDrawList.addRect(headerGeo, Color(60, 60, 60, 255));
-		}
+		if (m_isDragged && m_isDragged()) outDrawList.addRect(headerGeo, Color(150, 150, 150, 100));
+		else if (m_isSelected) outDrawList.addRect(headerGeo, GetTheme().Accent_Primary);
+		else if (m_isHovered) outDrawList.addRect(headerGeo, Color(60, 60, 60, 255));
 
 		// -- Draw Drop Zone Highlight --
 		if (SWidget::getDragHoveredWidget() == this) {
@@ -75,7 +96,7 @@ namespace Silica {
 			outDrawList.addRect(headerGeo, overlayColor);
 
 			Color highlightBorder = Silica::GetTheme().Border_Selected;
-			float t = Silica::GetTheme().Border_Thickness;
+			float t = Silica::GetTheme().Border_Thickness * m_renderScale;
 			float x = headerGeo.position.x;
 			float y = headerGeo.position.y;
 			float w = headerGeo.size.x;
@@ -89,24 +110,23 @@ namespace Silica {
 
 		// -- Draw Chevron And Text --
 		if (m_font) {
-			float textIndent = 5.0f;
+			float textIndent = 20.0f * m_renderScale;
 
-			if (!m_children.empty()) {
+			if (!m_isLeaf && !m_isEmpty) {
 				Vec2 arrowCenter = {
-					headerGeo.position.x + 10.0f,
-					headerGeo.position.y + (m_headerHeight * 0.5f)
+					headerGeo.position.x + (10.0f * m_renderScale),
+					headerGeo.position.y + (scaledHeaderHeight * 0.5f)
 				};
-
-				drawTriangle(outDrawList, arrowCenter, 4.0f, Color::white(), m_isOpen);
-
-				textIndent = 20.0f;
-			}
-			else {
-				textIndent = 20.0f;
+				drawTriangle(outDrawList, arrowCenter, 4.0f * m_renderScale, Color::white(), m_isOpen);
 			}
 
-			Vec2 textPos = { headerGeo.position.x + textIndent, headerGeo.position.y + m_yOffset };
-			outDrawList.addText(m_font, m_label, textPos, Color::white());
+			if (m_leadingWidget) {
+				m_leadingWidget->onDraw(outDrawList, m_leadingWidget->getAllocatedGeometry());
+				textIndent += m_leadingWidget->getDesiredSize().x + (6.0f * m_renderScale);
+			}
+
+			Vec2 textPos = { headerGeo.position.x + textIndent, headerGeo.position.y + (m_yOffset * m_renderScale) };
+			outDrawList.addText(m_font, m_label, textPos, Color::white(), m_renderScale);
 		}
 
 		// -- Draw Children --
@@ -117,8 +137,17 @@ namespace Silica {
 		}
 	}
 
+	void STreeNode::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_leadingWidget) m_leadingWidget->setRenderScale(scale);
+		for (auto& child : m_children) {
+			if (child) child->setRenderScale(scale);
+		}
+	}
+
 	EventReply STreeNode::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
+		float scaledHeaderHeight = m_headerHeight * m_renderScale;
+		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, scaledHeaderHeight} };
 		m_isHovered = headerGeo.contains(mousePos);
 
 		if (m_isLeftMouseDown && m_onDragStart) {
@@ -146,15 +175,18 @@ namespace Silica {
 			}
 		}
 
-		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
+		float scaledHeaderHeight = m_headerHeight * m_renderScale;
+		float scaledIndentSize = m_indentSize * m_renderScale;
+		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, scaledHeaderHeight} };
 
 		if (headerGeo.contains(mousePos)) {
 			if (button == MouseButton::Left) {
-				if (mousePos.x < headerGeo.position.x + m_indentSize) {
-					if (!m_children.empty()) {
+				if (mousePos.x < headerGeo.position.x + (20.0f * m_renderScale)) {
+					if (!m_isLeaf && !m_isEmpty) {
 						m_isOpen = !m_isOpen;
 						if (m_onToggleOpen) m_onToggleOpen(m_isOpen);
 					}
+					return EventReply::handled();
 				}
 				else {
 					m_isLeftMouseDown = true;
@@ -176,7 +208,8 @@ namespace Silica {
 
 		if (button != MouseButton::Left) return EventReply::unhandled();
 
-		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
+		float scaledHeaderHeight = m_headerHeight * m_renderScale;
+		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, scaledHeaderHeight} };
 
 		if (wasClicked && headerGeo.contains(mousePos)) {
 			if (m_onClicked) m_onClicked();
@@ -211,7 +244,7 @@ namespace Silica {
 	void STreeNode::setOpen(bool open) {
 		m_isOpen = open;
 	}
-	
+
 	void STreeNode::setSelected(bool selected) {
 		m_isSelected = selected;
 	}
@@ -256,7 +289,8 @@ namespace Silica {
 		}
 
 		// -- This Header --
-		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
+		float scaledHeaderHeight = m_headerHeight * m_renderScale;
+		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, scaledHeaderHeight} };
 		if (headerGeo.contains(mousePos)) {
 			if (m_onDragOver) {
 				EventReply reply = m_onDragOver(payload);
@@ -282,7 +316,8 @@ namespace Silica {
 		}
 
 		// -- This Header --
-		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, m_headerHeight} };
+		float scaledHeaderHeight = m_headerHeight * m_renderScale;
+		Geometry headerGeo = { allocatedGeometry.position, {allocatedGeometry.size.x, scaledHeaderHeight} };
 		if (headerGeo.contains(mousePos) && m_onDrop) {
 			return m_onDrop(payload);
 		}

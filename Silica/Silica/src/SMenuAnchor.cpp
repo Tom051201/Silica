@@ -70,13 +70,19 @@ namespace Silica {
 		// -- Draw The Arrow --
 		if (m_showArrow) {
 			Vec2 arrowCenter = {
-				allocatedGeometry.position.x + allocatedGeometry.size.x - 12.0f,
+				allocatedGeometry.position.x + allocatedGeometry.size.x - (12.0f * m_renderScale),
 				allocatedGeometry.position.y + (allocatedGeometry.size.y * 0.5f)
 			};
 
 			Color arrowColor = m_isHovered ? m_arrowHover : m_arrowNormal;
-			drawTriangle(outDrawList, arrowCenter, 6.0f, arrowColor);
+			drawTriangle(outDrawList, arrowCenter, 6.0f * m_renderScale, arrowColor);
 		}
+	}
+
+	void SMenuAnchor::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_anchorContent) m_anchorContent->setRenderScale(scale);
+		if (m_menuContent) m_menuContent->setRenderScale(scale);
 	}
 
 	EventReply SMenuAnchor::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {

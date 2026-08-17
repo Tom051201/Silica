@@ -7,6 +7,8 @@
 namespace Silica {
 
 	bool FontAtlas::loadFromFile(const char* filePath, float fontSize) {
+		m_fontSize = fontSize;
+
 		// -- Read Raw File Into Memory --
 		std::ifstream file(filePath, std::ios::binary | std::ios::ate);
 		if (!file.is_open()) return false;

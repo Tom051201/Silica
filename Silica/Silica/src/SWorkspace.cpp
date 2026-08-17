@@ -13,17 +13,25 @@ namespace Silica {
 			.initialTabs = { { args.initialTitle, args.initialContent, Rect() } },
 			.font = m_font,
 			.onUndockWindow = [this](std::string title, WidgetPtr content, Vec2 mousePos) {
+				float scaledWidth = 300.0f * m_renderScale;
+				float scaledHeight = 200.0f * m_renderScale;
+				float grabOffsetX = 150.0f * m_renderScale;
+				float grabOffsetY = 15.0f * m_renderScale;
+
 				auto newWin = MakeWidget<SWindow>({
 					.title = title,
-					.initialPosition = { mousePos.x - 150.0f, mousePos.y - 15.0f },
-					.initialSize = { 300.0f, 200.0f },
+					.initialPosition = { mousePos.x - grabOffsetX, mousePos.y - grabOffsetY },
+					.initialSize = { scaledWidth, scaledHeight },
 					.font = m_font,
 					.content = content
 				});
+
+				newWin->setRenderScale(m_renderScale);
+
 				newWin->startDragging(mousePos);
 				addFloatingWindow(newWin);
 			}
-		});
+			});
 	}
 
 	void SWorkspace::computeDesiredSize() {
@@ -34,7 +42,7 @@ namespace Silica {
 		}
 	}
 
-	void SWorkspace::arrangeChildren(const Geometry & allocatedGeometry) {
+	void SWorkspace::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 		m_dockSpace->arrangeChildren(allocatedGeometry);
 		for (auto& win : m_floatingWindows) {
@@ -42,7 +50,7 @@ namespace Silica {
 		}
 	}
 
-	void SWorkspace::onDraw(DrawList & outDrawList, const Geometry & allocatedGeometry) const {
+	void SWorkspace::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		// -- Draw DockSpace First (Background) --
 		m_dockSpace->onDraw(outDrawList, allocatedGeometry);
 
@@ -52,20 +60,40 @@ namespace Silica {
 		}
 	}
 
-	EventReply SWorkspace::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		EventReply reply = EventReply::unhandled();
+	void SWorkspace::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_dockSpace) m_dockSpace->setRenderScale(scale);
+		for (auto& win : m_floatingWindows) {
+			if (win) win->setRenderScale(scale);
+		}
+	}
 
+	EventReply SWorkspace::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		bool eventHandled = false;
+
+		// -- Route to floating windows top-to-bottom --
 		for (int i = (int)m_floatingWindows.size() - 1; i >= 0; --i) {
-			if (m_floatingWindows[i]->onMouseMove(m_floatingWindows[i]->getAllocatedGeometry(), mousePos).isHandled) {
-				reply = EventReply::handled();
-				break;
+			if (!eventHandled) {
+				if (m_floatingWindows[i]->onMouseMove(m_floatingWindows[i]->getAllocatedGeometry(), mousePos).isHandled) {
+					eventHandled = true;
+				}
+			}
+			else {
+				m_floatingWindows[i]->onMouseMove(m_floatingWindows[i]->getAllocatedGeometry(), Vec2(-9999.0f, -9999.0f));
 			}
 		}
 
-		if (!reply.isHandled) {
-			reply = m_dockSpace->onMouseMove(m_dockSpace->getAllocatedGeometry(), mousePos);
+		// -- Route to DockSpace (or clear its hover states) --
+		if (!eventHandled) {
+			if (m_dockSpace->onMouseMove(m_dockSpace->getAllocatedGeometry(), mousePos).isHandled) {
+				eventHandled = true;
+			}
 		}
-		return reply;
+		else {
+			m_dockSpace->onMouseMove(m_dockSpace->getAllocatedGeometry(), Vec2(-9999.0f, -9999.0f));
+		}
+
+		return eventHandled ? EventReply::handled() : EventReply::unhandled();
 	}
 
 	EventReply SWorkspace::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
@@ -105,7 +133,7 @@ namespace Silica {
 	void SWorkspace::addFloatingWindow(std::shared_ptr<SWindow> window) {
 		window->onDragMove = [this](Vec2 mousePos) {
 			m_dockSpace->updateDragDropPreview(mousePos, true);
-		};
+			};
 
 		window->onDragEnd = [this, window](Vec2 mousePos) {
 			if (m_dockSpace->processDrop(window->getTitle(), window->getContent())) {
@@ -114,7 +142,7 @@ namespace Silica {
 				if (it != m_floatingWindows.end()) m_floatingWindows.erase(it);
 			}
 			m_dockSpace->updateDragDropPreview(mousePos, false);
-		};
+			};
 
 		m_floatingWindows.push_back(window);
 	}

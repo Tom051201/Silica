@@ -21,20 +21,15 @@ namespace Silica {
 			m_child->computeDesiredSize();
 			m_desiredSize = m_child->getDesiredSize();
 		}
-		m_desiredSize.x += m_padding.x * 2;
-		m_desiredSize.y += m_padding.y * 2;
+
+		m_desiredSize.x += m_padding.x * 2.0f;
+		m_desiredSize.y += m_padding.y * 2.0f;
 	}
 
 	void SButton::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
-
 		if (m_child) {
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
-			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
-			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
-			m_child->arrangeChildren(childGeo);
+			m_child->arrangeChildren(getChildGeometry(allocatedGeometry));
 		}
 	}
 
@@ -46,13 +41,13 @@ namespace Silica {
 		}
 
 		if (m_child) {
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
-			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
-			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
-			m_child->onDraw(outDrawList, childGeo);
+			m_child->onDraw(outDrawList, getChildGeometry(allocatedGeometry));
 		}
+	}
+
+	void SButton::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_child) m_child->setRenderScale(scale);
 	}
 
 	EventReply SButton::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
@@ -63,13 +58,7 @@ namespace Silica {
 		}
 
 		if (m_child) {
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
-			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
-			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
-
-			m_child->onMouseMove(childGeo, mousePos);
+			m_child->onMouseMove(getChildGeometry(allocatedGeometry), mousePos);
 		}
 
 		return m_isHovered ? EventReply::handled() : EventReply::unhandled();
@@ -112,32 +101,27 @@ namespace Silica {
 
 	EventReply SButton::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
 		if (m_child) {
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
-			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
-			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
-
-			EventReply reply = m_child->onDragOver(childGeo, mousePos, payload);
+			EventReply reply = m_child->onDragOver(getChildGeometry(allocatedGeometry), mousePos, payload);
 			if (reply.isHandled) return reply;
 		}
-
 		return EventReply::unhandled();
 	}
 
 	EventReply SButton::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
 		if (m_child) {
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + m_padding.x;
-			childGeo.position.y = allocatedGeometry.position.y + m_padding.y;
-			childGeo.size.x = allocatedGeometry.size.x - (m_padding.x * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (m_padding.y * 2.0f);
-
-			EventReply reply = m_child->onDrop(childGeo, mousePos, payload);
+			EventReply reply = m_child->onDrop(getChildGeometry(allocatedGeometry), mousePos, payload);
 			if (reply.isHandled) return reply;
 		}
-
 		return EventReply::unhandled();
+	}
+
+	Geometry SButton::getChildGeometry(const Geometry& allocatedGeometry) const {
+		float padX = m_padding.x * m_renderScale;
+		float padY = m_padding.y * m_renderScale;
+		return {
+			{allocatedGeometry.position.x + padX, allocatedGeometry.position.y + padY},
+			{allocatedGeometry.size.x - (padX * 2.0f), allocatedGeometry.size.y - (padY * 2.0f)}
+		};
 	}
 
 }

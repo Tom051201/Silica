@@ -18,12 +18,15 @@ namespace Silica {
 			float yTextOffset = 16.0f;
 			bool initiallyOpen = false;
 			bool isSelected = false;
+			bool isLeaf = false;
+			bool isEmpty = false;
 			std::function<bool()> isDragged = nullptr;
 			std::function<void()> onClicked = nullptr;
 			std::function<void()> onDragStart = nullptr;
 			std::function<EventReply(const DragDropPayload&)> onDragOver = nullptr;
 			std::function<EventReply(const DragDropPayload&)> onDrop = nullptr;
 			std::function<void(bool)> onToggleOpen = nullptr;
+			WidgetPtr leadingWidget = nullptr;
 			std::vector<WidgetPtr> children;
 		};
 
@@ -32,6 +35,8 @@ namespace Silica {
 		void computeDesiredSize() override;
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
 		void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const override;
+
+		void setRenderScale(float scale) override;
 
 		EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
@@ -54,10 +59,13 @@ namespace Silica {
 		bool m_isOpen = false;
 		bool m_isSelected = false;
 		bool m_isHovered = false;
+		bool m_isLeaf = false;
+		bool m_isEmpty = false;
 		std::function<bool()> m_isDragged;
 		std::function<void()> m_onClicked;
 		std::function<void(bool)> m_onToggleOpen;
 
+		WidgetPtr m_leadingWidget = nullptr;
 		std::vector<WidgetPtr> m_children;
 
 		float m_headerHeight = 22.0f;

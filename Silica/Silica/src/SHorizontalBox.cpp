@@ -31,32 +31,36 @@ namespace Silica {
 
 	void SHorizontalBox::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
+
+		float scaledSpacing = m_spacing * m_renderScale;
 		float currentX = allocatedGeometry.position.x;
 		bool isFirstChild = true;
 
 		for (const Slot& slot : m_slots) {
 			if (!slot.child) continue;
 
-			if (!isFirstChild) currentX += m_spacing;
+			if (!isFirstChild) currentX += scaledSpacing;
 			isFirstChild = false;
+
+			float padX = slot.padding.x * m_renderScale;
+			float padY = slot.padding.y * m_renderScale;
 
 			Vec2 childDesired = slot.child->getDesiredSize();
 			Geometry childGeo;
-			childGeo.position.x = currentX + slot.padding.x;
-			childGeo.position.y = allocatedGeometry.position.y + slot.padding.y;
+			childGeo.position.x = currentX + padX;
+			childGeo.position.y = allocatedGeometry.position.y + padY;
+			childGeo.size.x = childDesired.x * m_renderScale;
+			childGeo.size.y = allocatedGeometry.size.y - (padY * 2.0f);
 
-			childGeo.size.x = childDesired.x;
-
-			childGeo.size.y = allocatedGeometry.size.y - (slot.padding.y * 2.0f);
 			if (childGeo.size.y < 0.0f) childGeo.size.y = 0.0f;
 
-			float maxAvailableX = (allocatedGeometry.position.x + allocatedGeometry.size.x) - childGeo.position.x - slot.padding.x;
+			float maxAvailableX = (allocatedGeometry.position.x + allocatedGeometry.size.x) - childGeo.position.x - padX;
 			if (childGeo.size.x > maxAvailableX) {
 				childGeo.size.x = maxAvailableX > 0 ? maxAvailableX : 0.0f;
 			}
 
 			slot.child->arrangeChildren(childGeo);
-			currentX += childGeo.size.x + (slot.padding.x * 2.0f);
+			currentX += childGeo.size.x + (padX * 2.0f);
 		}
 	}
 
@@ -65,6 +69,13 @@ namespace Silica {
 			if (slot.child) {
 				slot.child->onDraw(outDrawList, slot.child->getAllocatedGeometry());
 			}
+		}
+	}
+
+	void SHorizontalBox::setRenderScale(float scale) {
+		m_renderScale = scale;
+		for (auto& slot : m_slots) {
+			if (slot.child) slot.child->setRenderScale(scale);
 		}
 	}
 

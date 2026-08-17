@@ -20,6 +20,13 @@ namespace Silica {
 		if (m_child) m_child->onDraw(drawList, m_child->getAllocatedGeometry());
 	}
 
+	void SScrollCatcher::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_child) {
+			m_child->setRenderScale(scale);
+		}
+	}
+
 	EventReply SScrollCatcher::onMouseMove(const Geometry& geom, const Vec2& pos)  {
 		if (m_child) return m_child->onMouseMove(m_child->getAllocatedGeometry(), pos);
 

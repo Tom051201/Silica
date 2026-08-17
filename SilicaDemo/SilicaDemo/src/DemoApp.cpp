@@ -28,6 +28,9 @@
 #include "Silica/include/SMenuAnchor.h"
 #include "Silica/include/SNodeEditor.h"
 #include "Silica/include/InputCodes.h"
+#include "Silica/include/SInputFieldFloat.h"
+#include "Silica/include/SInputFieldInt.h"
+#include "Silica/include/SInputFieldVec3Float.h"
 
 class SBorderLayout : public Silica::SWidget {
 public:
@@ -263,14 +266,19 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Simulate", .font = &m_font})}) },
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Stop", .font = &m_font})}) },
 				{ {2, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Step", .font = &m_font})}) },
-				{ {15, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Camera: 3D", .font = &m_font})}) }
+				{ {15, 2}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "Camera: 3D", .font = &m_font})}) },
+				//{ {2, 2}, Silica::MakeWidget<Silica::SSliderFloat>({ .initialValue = 2.0f, .minValue = 1.0f, .maxValue = 10.0f, .snapStep = 0.5f, .font = &m_font }) },
+				//{ {2, 2}, Silica::MakeWidget<Silica::SSliderInt>({ .initialValue = 2, .minValue = 1, .maxValue = 10, .snapStep = 2, .font = &m_font }) },
+				//{ {2, 2}, Silica::MakeWidget<Silica::SInputFieldFloat>({ .initialValue = 2.0f, .font = &m_font }) },
+				//{ {2, 2}, Silica::MakeWidget<Silica::SInputFieldInt>({ .initialValue = 2, .font = &m_font }) },
+				{ {2, 2}, Silica::MakeWidget<Silica::SInputFieldVec3Float>({ .initialValue = {2.0f, 2.0f, 2.0f}, .font = &m_font})},
 			}
 		})
-		});
+	});
 	auto vpRenderArea = Silica::MakeWidget<Silica::SBox>({
 		.backgroundColor = Silica::Color(15, 15, 15, 255),
 		.child = Silica::MakeWidget<Silica::STextBlock>({.text = "\n\n   [ 3D Render Image Placeholder ]", .font = &m_font})
-		});
+	});
 	auto viewportContent = std::make_shared<SBorderLayout>();
 	viewportContent->construct(vpToolbar, vpRenderArea);
 
@@ -296,7 +304,7 @@ bool DemoApp::initialize(HWND hwnd, int width, int height) {
 			.slots = {
 				{ {10, 10}, Silica::MakeWidget<Silica::SVerticalBox>({.slots = { { {0,0}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "[DIR]\nModels", .font = &m_font})}) } }}) },
 				{ {10, 10}, Silica::MakeWidget<Silica::SVerticalBox>({.slots = { { {0,0}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "[DIR]\nTextures", .font = &m_font})}) } }}) },
-				{ {10, 10}, Silica::MakeWidget<Silica::SVerticalBox>({.slots = { { {0,0}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "[FILE]\nPlayer.fbx", .font = &m_font})}) } }}) }
+				{ {10, 10}, Silica::MakeWidget<Silica::SVerticalBox>({.slots = { { {0,0}, Silica::MakeWidget<Silica::SButton>({.child = Silica::MakeWidget<Silica::STextBlock>({.text = "[FILE]\nPlayer.fbx", .font = &m_font})}) } }}) },
 			}
 		})
 		});

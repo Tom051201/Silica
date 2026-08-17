@@ -12,11 +12,13 @@ namespace Silica {
 	}
 
 	void SSeparator::computeDesiredSize() {
+		float scaledThickness = m_thickness * m_renderScale;
+
 		if (m_orientation == Orientation::Horizontal) {
-			m_desiredSize = Vec2(0.0f, m_thickness);
+			m_desiredSize = Vec2(0.0f, scaledThickness);
 		}
 		else {
-			m_desiredSize = Vec2(m_thickness, 0.0f);
+			m_desiredSize = Vec2(scaledThickness, 0.0f);
 		}
 	}
 

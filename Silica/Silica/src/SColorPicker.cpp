@@ -34,8 +34,8 @@ namespace Silica {
 			svRect.left + (m_s * svRect.getWidth()),
 			svRect.top + ((1.0f - m_v) * svRect.getHeight())
 		);
-		outDrawList.addRect({ {reticlePos.x - 3.0f, reticlePos.y - 3.0f}, {6.0f, 6.0f} }, Color::black());
-		outDrawList.addRect({ {reticlePos.x - 2.0f, reticlePos.y - 2.0f}, {4.0f, 4.0f} }, Color::white());
+		outDrawList.addRect({ {reticlePos.x - (3.0f * m_renderScale), reticlePos.y - (3.0f * m_renderScale)}, {6.0f * m_renderScale, 6.0f * m_renderScale} }, Color::black());
+		outDrawList.addRect({ {reticlePos.x - (2.0f * m_renderScale), reticlePos.y - (2.0f * m_renderScale)}, {4.0f * m_renderScale, 4.0f * m_renderScale} }, Color::white());
 
 
 		// -- Draw Hue Bar --
@@ -53,8 +53,7 @@ namespace Silica {
 
 		// -- Draw Hue Thumb --
 		float hueX = hueRect.left + (m_h * hueRect.getWidth());
-		outDrawList.addRect({ {hueX - 2.0f, hueRect.top - 2.0f}, {4.0f, hueRect.getHeight() + 4.0f} }, Color::white());
-
+		outDrawList.addRect({ {hueX - (2.0f * m_renderScale), hueRect.top - (2.0f * m_renderScale)}, {std::max(1.0f, 4.0f * m_renderScale), hueRect.getHeight() + (4.0f * m_renderScale)} }, Color::white());
 
 		// -- Draw Alpha Bar --
 		Color alphaZero = hsvToRgb(m_h, m_s, m_v, 0.0f);
@@ -64,7 +63,11 @@ namespace Silica {
 
 		// -- Draw Alpha Thumb --
 		float alphaX = alphaRect.left + (m_a * alphaRect.getWidth());
-		outDrawList.addRect({ {alphaX - 2.0f, alphaRect.top - 2.0f}, {4.0f, alphaRect.getHeight() + 4.0f} }, Color::white());
+		outDrawList.addRect({ {alphaX - (2.0f * m_renderScale), alphaRect.top - (2.0f * m_renderScale)}, {std::max(1.0f, 4.0f * m_renderScale), alphaRect.getHeight() + (4.0f * m_renderScale)} }, Color::white());
+	}
+
+	void SColorPicker::setRenderScale(float scale) {
+		m_renderScale = scale;
 	}
 
 	void SColorPicker::updateFromMouse(const Geometry& allocatedGeometry, const Vec2& mousePos) {
@@ -131,15 +134,15 @@ namespace Silica {
 
 	// ----- Layout Helpers -----
 	Rect SColorPicker::getSVBoxRect(const Geometry& geo) const {
-		return Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y, geo.position.y + geo.size.y - 50.0f);
+		return Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y, geo.position.y + geo.size.y - (50.0f * m_renderScale));
 	}
 
 	Rect SColorPicker::getHueBarRect(const Geometry& geo) const {
-		return Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y + geo.size.y - 45.0f, geo.position.y + geo.size.y - 25.0f);
+		return Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y + geo.size.y - (45.0f * m_renderScale), geo.position.y + geo.size.y - (25.0f * m_renderScale));
 	}
 
 	Rect SColorPicker::getAlphaBarRect(const Geometry& geo) const {
-		return Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y + geo.size.y - 20.0f, geo.position.y + geo.size.y);
+		return Rect(geo.position.x, geo.position.x + geo.size.x, geo.position.y + geo.size.y - (20.0f * m_renderScale), geo.position.y + geo.size.y);
 	}
 
 

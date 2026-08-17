@@ -8,6 +8,7 @@ namespace Silica {
 		m_padding = args.padding;
 		m_explicitSize = args.explicitSize.value_or(Vec2::zero());
 		m_borderThickness = args.borderThickness;
+		m_consumePointerEvents = args.consumePointerEvents;
 		m_backgroundColor = args.backgroundColor.value_or(GetTheme().Background_Panel);
 		m_borderColor = args.borderColor.value_or(GetTheme().Border_Primary);
 		m_onDragOver = args.onDragOver;
@@ -32,24 +33,8 @@ namespace Silica {
 
 	void SBox::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
-
 		if (m_child) {
-			float offsetX = m_padding.x + m_borderThickness;
-			float offsetY = m_padding.y + m_borderThickness;
-
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + offsetX;
-			childGeo.position.y = allocatedGeometry.position.y + offsetY;
-			childGeo.size.x = allocatedGeometry.size.x - (offsetX * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (offsetY * 2.0f);
-
-			if (m_explicitSize.x > 0.0f) childGeo.size.x = m_explicitSize.x;
-			if (m_explicitSize.y > 0.0f) childGeo.size.y = m_explicitSize.y;
-
-			childGeo.size.x = std::max(0.0f, childGeo.size.x);
-			childGeo.size.y = std::max(0.0f, childGeo.size.y);
-
-			m_child->arrangeChildren(childGeo);
+			m_child->arrangeChildren(getChildGeometry(allocatedGeometry));
 		}
 	}
 
@@ -59,29 +44,20 @@ namespace Silica {
 		}
 
 		if (m_child) {
-			float offsetX = m_padding.x + m_borderThickness;
-			float offsetY = m_padding.y + m_borderThickness;
-
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + offsetX;
-			childGeo.position.y = allocatedGeometry.position.y + offsetY;
-			childGeo.size.x = allocatedGeometry.size.x - (offsetX * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (offsetY * 2.0f);
-
-			m_child->onDraw(outDrawList, childGeo);
+			m_child->onDraw(outDrawList, getChildGeometry(allocatedGeometry));
 		}
 
 		if (m_borderThickness > 0.0f && m_borderColor.a() > 0) {
-			float t = m_borderThickness;
+			float t = m_borderThickness * m_renderScale;
 			float x = allocatedGeometry.position.x;
 			float y = allocatedGeometry.position.y;
 			float w = allocatedGeometry.size.x;
 			float h = allocatedGeometry.size.y;
 
-			outDrawList.addRect({ {x, y}, {w, t} }, m_borderColor); // Top edge
-			outDrawList.addRect({ {x, y + h - t}, {w, t} }, m_borderColor); // Bottom edge
-			outDrawList.addRect({ {x, y + t}, {t, h - (t * 2)} }, m_borderColor); // Left edge
-			outDrawList.addRect({ {x + w - t, y + t}, {t, h - (t * 2)} }, m_borderColor); // Right edge
+			outDrawList.addRect({ {x, y}, {w, t} }, m_borderColor);
+			outDrawList.addRect({ {x, y + h - t}, {w, t} }, m_borderColor);
+			outDrawList.addRect({ {x, y + t}, {t, h - (t * 2)} }, m_borderColor);
+			outDrawList.addRect({ {x + w - t, y + t}, {t, h - (t * 2)} }, m_borderColor);
 		}
 
 		if (SWidget::getDragHoveredWidget() == this) {
@@ -90,7 +66,7 @@ namespace Silica {
 			outDrawList.addRect(allocatedGeometry, overlayColor);
 
 			Color highlightBorder = Silica::GetTheme().Border_Selected;
-			float t = Silica::GetTheme().Border_Thickness;
+			float t = std::max(2.0f, Silica::GetTheme().Border_Thickness * m_renderScale);
 			float x = allocatedGeometry.position.x;
 			float y = allocatedGeometry.position.y;
 			float w = allocatedGeometry.size.x;
@@ -103,75 +79,52 @@ namespace Silica {
 		}
 	}
 
+	void SBox::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_child) m_child->setRenderScale(scale);
+	}
+
 	EventReply SBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_child) {
-			float offsetX = m_padding.x + m_borderThickness;
-			float offsetY = m_padding.y + m_borderThickness;
-
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + offsetX;
-			childGeo.position.y = allocatedGeometry.position.y + offsetY;
-			childGeo.size.x = allocatedGeometry.size.x - (offsetX * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (offsetY * 2.0f);
-
-			EventReply reply = m_child->onMouseMove(childGeo, mousePos);
-			if (reply.isHandled) {
-				m_isHovered = false;
-				return reply;
-			}
+			EventReply reply = m_child->onMouseMove(getChildGeometry(allocatedGeometry), mousePos);
+			if (reply.isHandled) return reply;
 		}
 
 		m_isHovered = allocatedGeometry.contains(mousePos);
-		return m_isHovered ? EventReply::handled() : EventReply::unhandled();
+		if (m_isHovered && m_consumePointerEvents) return EventReply::handled();
+		return EventReply::unhandled();
 	}
 
 	EventReply SBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_child) {
-			float offsetX = m_padding.x + m_borderThickness;
-			float offsetY = m_padding.y + m_borderThickness;
-
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + offsetX;
-			childGeo.position.y = allocatedGeometry.position.y + offsetY;
-			childGeo.size.x = allocatedGeometry.size.x - (offsetX * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (offsetY * 2.0f);
-
-			EventReply reply = m_child->onMouseButtonDown(childGeo, mousePos, button);
+			EventReply reply = m_child->onMouseButtonDown(getChildGeometry(allocatedGeometry), mousePos, button);
 			if (reply.isHandled) return reply;
 		}
+
+		m_isHovered = allocatedGeometry.contains(mousePos);
+		if (m_isHovered && m_consumePointerEvents) return EventReply::handled();
 		return EventReply::unhandled();
 	}
 
 	EventReply SBox::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (m_child) {
-			float offsetX = m_padding.x + m_borderThickness;
-			float offsetY = m_padding.y + m_borderThickness;
-
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + offsetX;
-			childGeo.position.y = allocatedGeometry.position.y + offsetY;
-			childGeo.size.x = allocatedGeometry.size.x - (offsetX * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (offsetY * 2.0f);
-
-			EventReply reply = m_child->onMouseButtonUp(childGeo, mousePos, button);
+			EventReply reply = m_child->onMouseButtonUp(getChildGeometry(allocatedGeometry), mousePos, button);
 			if (reply.isHandled) return reply;
 		}
+
+		m_isHovered = allocatedGeometry.contains(mousePos);
+		if (m_isHovered && m_consumePointerEvents) return EventReply::handled();
 		return EventReply::unhandled();
 	}
 
 	EventReply SBox::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
-		if (m_child && allocatedGeometry.contains(mousePos)) {
-			float offsetX = m_padding.x + m_borderThickness;
-			float offsetY = m_padding.y + m_borderThickness;
-
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + offsetX;
-			childGeo.position.y = allocatedGeometry.position.y + offsetY;
-			childGeo.size.x = allocatedGeometry.size.x - (offsetX * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (offsetY * 2.0f);
-
-			return m_child->onMouseWheel(childGeo, mousePos, scrollDelta);
+		if (m_child) {
+			EventReply reply = m_child->onMouseWheel(getChildGeometry(allocatedGeometry), mousePos, scrollDelta);
+			if (reply.isHandled) return reply;
 		}
+
+		m_isHovered = allocatedGeometry.contains(mousePos);
+		if (m_isHovered && m_consumePointerEvents) return EventReply::handled();
 		return EventReply::unhandled();
 	}
 
@@ -180,22 +133,11 @@ namespace Silica {
 	}
 
 	EventReply SBox::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
-		// -- Passing To Children --
 		if (m_child) {
-			float offsetX = m_padding.x + m_borderThickness;
-			float offsetY = m_padding.y + m_borderThickness;
-
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + offsetX;
-			childGeo.position.y = allocatedGeometry.position.y + offsetY;
-			childGeo.size.x = allocatedGeometry.size.x - (offsetX * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (offsetY * 2.0f);
-
-			EventReply reply = m_child->onDragOver(childGeo, mousePos, payload);
+			EventReply reply = m_child->onDragOver(getChildGeometry(allocatedGeometry), mousePos, payload);
 			if (reply.isHandled) return reply;
 		}
 
-		// -- Handle For Box --
 		if (m_onDragOver && allocatedGeometry.contains(mousePos)) {
 			EventReply reply = m_onDragOver(payload);
 			if (reply.isHandled) {
@@ -204,31 +146,44 @@ namespace Silica {
 			}
 		}
 
+		m_isHovered = allocatedGeometry.contains(mousePos);
+		if (m_isHovered && m_consumePointerEvents) return EventReply::handled();
 		return EventReply::unhandled();
 	}
 
 	EventReply SBox::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
-		// -- Passing To Children --
 		if (m_child) {
-			float offsetX = m_padding.x + m_borderThickness;
-			float offsetY = m_padding.y + m_borderThickness;
-
-			Geometry childGeo;
-			childGeo.position.x = allocatedGeometry.position.x + offsetX;
-			childGeo.position.y = allocatedGeometry.position.y + offsetY;
-			childGeo.size.x = allocatedGeometry.size.x - (offsetX * 2.0f);
-			childGeo.size.y = allocatedGeometry.size.y - (offsetY * 2.0f);
-
-			EventReply reply = m_child->onDrop(childGeo, mousePos, payload);
+			EventReply reply = m_child->onDrop(getChildGeometry(allocatedGeometry), mousePos, payload);
 			if (reply.isHandled) return reply;
 		}
 
-		// -- Handle For Box --
 		if (m_onDrop && allocatedGeometry.contains(mousePos)) {
-			return m_onDrop(payload);
+			EventReply reply = m_onDrop(payload);
+			if (reply.isHandled) {
+				SWidget::setDragHoveredWidget(this);
+				return reply;
+			}
 		}
 
+		m_isHovered = allocatedGeometry.contains(mousePos);
+		if (m_isHovered && m_consumePointerEvents) return EventReply::handled();
 		return EventReply::unhandled();
+	}
+
+	Geometry SBox::getChildGeometry(const Geometry& allocatedGeometry) const {
+		float offsetX = (m_padding.x + m_borderThickness) * m_renderScale;
+		float offsetY = (m_padding.y + m_borderThickness) * m_renderScale;
+
+		Geometry childGeo;
+		childGeo.position.x = allocatedGeometry.position.x + offsetX;
+		childGeo.position.y = allocatedGeometry.position.y + offsetY;
+		childGeo.size.x = std::max(0.0f, allocatedGeometry.size.x - (offsetX * 2.0f));
+		childGeo.size.y = std::max(0.0f, allocatedGeometry.size.y - (offsetY * 2.0f));
+		return childGeo;
+	}
+
+	void SBox::setBackgroundColor(const Color& color) {
+		m_backgroundColor = color;
 	}
 
 }

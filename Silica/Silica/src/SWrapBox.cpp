@@ -23,23 +23,28 @@ namespace Silica {
 
 	void SWrapBox::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
-		float currentX = m_spacing;
-		float currentY = m_spacing;
+
+		float scaledSpacing = m_spacing * m_renderScale;
+		float currentX = scaledSpacing;
+		float currentY = scaledSpacing;
 		float rowHeight = 0.0f;
 
 		for (auto& child : m_children) {
 			if (!child) continue;
 			Vec2 size = child->getDesiredSize();
-			if (currentX + size.x > allocatedGeometry.size.x && currentX > m_spacing) {
-				currentX = m_spacing;
-				currentY += rowHeight + m_spacing;
+
+			if (currentX + size.x > allocatedGeometry.size.x && currentX > scaledSpacing) {
+				currentX = scaledSpacing;
+				currentY += rowHeight + scaledSpacing;
 				rowHeight = 0.0f;
 			}
+
 			child->arrangeChildren({ allocatedGeometry.position + Vec2(currentX, currentY), size });
-			currentX += size.x + m_spacing;
+			currentX += size.x + scaledSpacing;
 			rowHeight = std::max(rowHeight, size.y);
 		}
-		m_desiredSize.y = currentY + rowHeight + m_spacing;
+
+		m_desiredSize.y = currentY + rowHeight + scaledSpacing;
 	}
 
 	void SWrapBox::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
@@ -48,12 +53,31 @@ namespace Silica {
 		}
 	}
 
-	EventReply SWrapBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+	void SWrapBox::setRenderScale(float scale) {
+		m_renderScale = scale;
 		for (auto& child : m_children) {
-			if (child && child->onMouseMove(child->getAllocatedGeometry(), mousePos).isHandled) return EventReply::handled();
+			if (child) child->setRenderScale(scale);
+		}
+	}
+
+	EventReply SWrapBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		bool eventHandled = false;
+
+		for (auto it = m_children.rbegin(); it != m_children.rend(); ++it) {
+			if (*it) {
+				if (!eventHandled) {
+					EventReply reply = (*it)->onMouseMove((*it)->getAllocatedGeometry(), mousePos);
+					if (reply.isHandled) {
+						eventHandled = true;
+					}
+				}
+				else {
+					(*it)->onMouseMove((*it)->getAllocatedGeometry(), Vec2(-9999.0f, -9999.0f));
+				}
+			}
 		}
 
-		return EventReply::unhandled();
+		return eventHandled ? EventReply::handled() : EventReply::unhandled();
 	}
 
 	EventReply SWrapBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {

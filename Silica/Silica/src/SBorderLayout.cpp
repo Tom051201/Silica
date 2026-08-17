@@ -25,7 +25,7 @@ namespace Silica {
 		}
 	}
 
-	void SBorderLayout::arrangeChildren(const Geometry & allocatedGeometry) {
+	void SBorderLayout::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 
 		float topHeight = 0.0f;
@@ -48,6 +48,12 @@ namespace Silica {
 	void SBorderLayout::onDraw(DrawList & outDrawList, const Geometry & allocatedGeometry) const {
 		if (m_topBar) m_topBar->onDraw(outDrawList, m_topBar->getAllocatedGeometry());
 		if (m_contentArea) m_contentArea->onDraw(outDrawList, m_contentArea->getAllocatedGeometry());
+	}
+
+	void SBorderLayout::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_topBar) m_topBar->setRenderScale(scale);
+		if (m_contentArea) m_contentArea->setRenderScale(scale);
 	}
 
 	EventReply SBorderLayout::onMouseMove(const Geometry & allocatedGeometry, const Vec2 & mousePos) {

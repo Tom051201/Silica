@@ -5,18 +5,18 @@
 
 #include "SWidget.h"
 #include "FontAtlas.h"
-#include "MathTypes.h"
 
 namespace Silica {
 
-	class STextBlock : public SWidget {
+	class SWrappedTextBlock : public SWidget {
 	public:
 
 		struct Args {
-			std::string text = "";
+			std::string text;
+			float wrapWidth;
+			int maxLines = 0;
 			std::optional<Color> color;
 			FontAtlas* font = nullptr;
-			float truncateWidth = 0.0f;
 		};
 
 		void construct(const Args& args);
@@ -30,12 +30,13 @@ namespace Silica {
 	private:
 
 		std::string m_text;
-		std::string m_displayText;
+		std::string m_wrappedText;
+		float m_wrapWidth = 0.0f;
+		int m_maxLines = 0;
 		Color m_color;
-		FontAtlas* m_font;
-		float m_truncateWidth = 0.0f;
+		FontAtlas* m_font = nullptr;
 
-		void updateDisplayText();
+		void updateWrappedText();
 
 	};
 

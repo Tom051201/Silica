@@ -34,28 +34,33 @@ namespace Silica {
 	void SCollapsingHeader::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 
+		float currentHeaderHeight = m_headerHeight * m_renderScale;
+
 		if (m_trailingWidget) {
 			Vec2 trailingSize = m_trailingWidget->getDesiredSize();
+			Vec2 scaledTrailingSize = { trailingSize.x * m_renderScale, trailingSize.y * m_renderScale };
+
 			Geometry trailGeo;
-			trailGeo.size = trailingSize;
-			trailGeo.position.x = allocatedGeometry.position.x + allocatedGeometry.size.x - trailingSize.x - 4.0f;
-			trailGeo.position.y = allocatedGeometry.position.y + ((m_headerHeight - trailingSize.y) * 0.5f);
+			trailGeo.size = scaledTrailingSize;
+			trailGeo.position.x = allocatedGeometry.position.x + allocatedGeometry.size.x - scaledTrailingSize.x - (4.0f * m_renderScale);
+			trailGeo.position.y = allocatedGeometry.position.y + ((currentHeaderHeight - scaledTrailingSize.y) * 0.5f);
 			m_trailingWidget->arrangeChildren(trailGeo);
 		}
 
 		if (m_isOpen && m_content) {
 			Geometry childGeo;
 			childGeo.position.x = allocatedGeometry.position.x;
-			childGeo.position.y = allocatedGeometry.position.y + m_headerHeight;
+			childGeo.position.y = allocatedGeometry.position.y + currentHeaderHeight;
 			childGeo.size.x = allocatedGeometry.size.x;
-			childGeo.size.y = allocatedGeometry.size.y - m_headerHeight;
-			if (childGeo.size.y < 0) childGeo.size.y = 0;
+			childGeo.size.y = std::max(0.0f, allocatedGeometry.size.y - currentHeaderHeight);
 
 			m_content->arrangeChildren(childGeo);
 		}
 	}
 
 	void SCollapsingHeader::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
+		float currentHeaderHeight = m_headerHeight * m_renderScale;
+
 		// -- Draw Header Background --
 		Rect headerRect = getHeaderRect();
 		Geometry headerGeo = { {headerRect.left, headerRect.top}, {headerRect.getWidth(), headerRect.getHeight()} };
@@ -63,13 +68,13 @@ namespace Silica {
 		outDrawList.addRect(headerGeo, bgColor);
 
 		// -- Draw Expand / Collapse Triangle --
-		Vec2 triangleCenter(headerGeo.position.x + 12.0f, headerGeo.position.y + (m_headerHeight * 0.5f));
-		drawTriangle(outDrawList, triangleCenter, 5.0f, m_isOpen, m_textColor);
+		Vec2 triangleCenter(headerGeo.position.x + (12.0f * m_renderScale), headerGeo.position.y + (currentHeaderHeight * 0.5f));
+		drawTriangle(outDrawList, triangleCenter, 5.0f * m_renderScale, m_isOpen, m_textColor);
 
 		// -- Draw Header Title Text --
 		if (m_font && !m_title.empty()) {
-			Vec2 textPos = { headerGeo.position.x + 24.0f, headerGeo.position.y + 16.0f };
-			outDrawList.addText(m_font, m_title, textPos, m_textColor);
+			Vec2 textPos = { headerGeo.position.x + (24.0f * m_renderScale), headerGeo.position.y + (16.0f * m_renderScale) };
+			outDrawList.addText(m_font, m_title, textPos, m_textColor, m_renderScale);
 		}
 
 		if (m_trailingWidget) {
@@ -79,6 +84,12 @@ namespace Silica {
 		if (m_isOpen && m_content) {
 			m_content->onDraw(outDrawList, m_content->getAllocatedGeometry());
 		}
+	}
+
+	void SCollapsingHeader::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_content) m_content->setRenderScale(scale);
+		if (m_trailingWidget) m_trailingWidget->setRenderScale(scale);
 	}
 
 	EventReply SCollapsingHeader::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
@@ -152,11 +163,12 @@ namespace Silica {
 	}
 
 	Rect SCollapsingHeader::getHeaderRect() const {
+		float currentHeaderHeight = m_headerHeight * m_renderScale;
 		return Rect(
 			m_allocatedGeometry.position.x,
 			m_allocatedGeometry.position.x + m_allocatedGeometry.size.x,
 			m_allocatedGeometry.position.y,
-			m_allocatedGeometry.position.y + m_headerHeight
+			m_allocatedGeometry.position.y + currentHeaderHeight
 		);
 	}
 

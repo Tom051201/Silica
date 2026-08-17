@@ -21,7 +21,13 @@ namespace Silica {
 	void SNodeEditor::arrangeChildren(const Geometry& allocatedGeometry) {
 		SWidget::arrangeChildren(allocatedGeometry);
 
+		float effectiveScale = m_renderScale * m_zoom;
+
 		if (m_activeContextMenu) {
+			m_activeContextMenu->computeDesiredSize();
+			Vec2 desired = m_activeContextMenu->getDesiredSize();
+			m_contextMenuGeometry.size = { desired.x * m_renderScale, desired.y * m_renderScale };
+
 			m_activeContextMenu->arrangeChildren(m_contextMenuGeometry);
 
 			Renderer::pushPopup(m_activeContextMenu, m_contextMenuGeometry, [this]() {
@@ -31,86 +37,110 @@ namespace Silica {
 
 		// -- Layout Embedded Pin Widgets --
 		for (auto& node : m_nodes) {
-			Vec2 screenPos = {
-				allocatedGeometry.position.x + m_panOffset.x + (node.position.x * m_zoom),
-				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * m_zoom)
-			};
-
-			float pinY = screenPos.y + (40.0f * m_zoom);
+			float maxInTextWidth = 0.0f;
+			float maxWidgetWidth = 0.0f;
+			float maxOutTextWidth = 0.0f;
 
 			for (auto& pin : node.inputs) {
-				if (pin.inlineWidget) {
+				float textW = getTextWidth(pin.name) / effectiveScale;
+				maxInTextWidth = std::max(maxInTextWidth, textW);
+
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
 					pin.inlineWidget->computeDesiredSize();
-					Vec2 desiredSize = pin.inlineWidget->getDesiredSize();
-					Vec2 scaledSize = { desiredSize.x * m_zoom, desiredSize.y * m_zoom };
-
-					float textOffset = getTextWidth(pin.name) + (15.0f * m_zoom);
-					Geometry widgetGeo;
-					widgetGeo.position = { screenPos.x + textOffset, pinY - (scaledSize.y * 0.25f) };
-					float maxWidgetWidth = (node.size.x * 0.6f * m_zoom) - textOffset;
-					float finalWidth = std::min(scaledSize.x, maxWidgetWidth);
-					widgetGeo.size = { finalWidth, scaledSize.y };
-
-					pin.inlineWidget->arrangeChildren(widgetGeo);
-
-					float requiredWidth = textOffset + scaledSize.x + (20.0f * m_zoom);
-					node.size.x = std::max(node.size.x, requiredWidth / m_zoom);
+					float widgetW = pin.inlineWidget->getDesiredSize().x;
+					maxWidgetWidth = std::max(maxWidgetWidth, widgetW);
 				}
-				pinY += (20.0f * m_zoom);
+			}
+
+			for (auto& pin : node.outputs) {
+				float textW = getTextWidth(pin.name) / effectiveScale;
+				maxOutTextWidth = std::max(maxOutTextWidth, textW);
+			}
+
+			float titleWidth = getTextWidth(node.title) / effectiveScale;
+
+			float contentWidth = 12.0f + maxInTextWidth;
+			if (maxWidgetWidth > 0.0f) {
+				contentWidth += 10.0f + maxWidgetWidth;
+			}
+			contentWidth += 40.0f + maxOutTextWidth + 12.0f;
+			node.size.x = std::max({ 140.0f, titleWidth + 30.0f, contentWidth });
+
+			Vec2 screenPos = {
+				allocatedGeometry.position.x + m_panOffset.x + (node.position.x * effectiveScale),
+				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * effectiveScale)
+			};
+
+			float pinY = screenPos.y + (40.0f * effectiveScale);
+			float widgetStartX = 12.0f + maxInTextWidth + 10.0f;
+
+			for (auto& pin : node.inputs) {
+				if (pin.inlineWidget && !isPinConnected(pin.id)) {
+					Vec2 desiredSize = pin.inlineWidget->getDesiredSize();
+					pin.inlineWidget->setRenderScale(effectiveScale);
+
+					Vec2 scaledSize = { desiredSize.x * effectiveScale, desiredSize.y * effectiveScale };
+
+					Geometry widgetGeo;
+					widgetGeo.position = { screenPos.x + (widgetStartX * effectiveScale), pinY - (scaledSize.y * 0.5f) };
+					widgetGeo.size = scaledSize;
+					pin.inlineWidget->arrangeChildren(widgetGeo);
+				}
+				pinY += (30.0f * effectiveScale);
 			}
 		}
 	}
 
 	void SNodeEditor::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
+		float effectiveScale = m_renderScale * m_zoom;
+
+		// -- Viewport Bounds for Culling --
+		float viewLeft = allocatedGeometry.position.x;
+		float viewRight = viewLeft + allocatedGeometry.size.x;
+		float viewTop = allocatedGeometry.position.y;
+		float viewBottom = viewTop + allocatedGeometry.size.y;
+
 		// -- Draw Background And Grid --
-		addRectToDrawList(outDrawList, allocatedGeometry, Color(30, 30, 30, 255));
+		outDrawList.addRect(allocatedGeometry, Silica::GetTheme().NodeEditor_Background);
 
 		outDrawList.pushClipRect(Rect(
 			allocatedGeometry.position.x, allocatedGeometry.position.x + allocatedGeometry.size.x,
 			allocatedGeometry.position.y, allocatedGeometry.position.y + allocatedGeometry.size.y
 		));
 
-		float gridSize = 50.0f * m_zoom;
+		float gridSize = 50.0f * effectiveScale;
 		float offsetX = fmod(m_panOffset.x, gridSize);
 		float offsetY = fmod(m_panOffset.y, gridSize);
 
 		for (float x = offsetX; x < allocatedGeometry.size.x; x += gridSize) {
 			float snapX = std::round(allocatedGeometry.position.x + x);
-			outDrawList.addThickLine(
-				{ snapX, allocatedGeometry.position.y },
-				{ snapX, allocatedGeometry.position.y + allocatedGeometry.size.y },
-				1.0f, Color(50, 50, 50, 255)
-			);
+			outDrawList.addThickLine({ snapX, allocatedGeometry.position.y }, { snapX, allocatedGeometry.position.y + allocatedGeometry.size.y }, 1.0f, Silica::GetTheme().NodeEditor_GridLine);
 		}
 		for (float y = offsetY; y < allocatedGeometry.size.y; y += gridSize) {
 			float snapY = std::round(allocatedGeometry.position.y + y);
-			outDrawList.addThickLine(
-				{ allocatedGeometry.position.x, snapY },
-				{ allocatedGeometry.position.x + allocatedGeometry.size.x, snapY },
-				1.0f, Color(50, 50, 50, 255)
-			);
+			outDrawList.addThickLine({ allocatedGeometry.position.x, snapY }, { allocatedGeometry.position.x + allocatedGeometry.size.x, snapY }, 1.0f, Silica::GetTheme().NodeEditor_GridLine);
 		}
 
 		// -- Pre-Compute Pin Screen Positions --
 		for (auto& node : const_cast<SNodeEditor*>(this)->m_nodes) {
 			float maxPins = (float)std::max(node.inputs.size(), node.outputs.size());
-			node.size.y = 40.0f + (maxPins * 20.0f) + 10.0f;
+			node.size.y = 40.0f + (maxPins * 30.0f) + 10.0f;
 
 			Vec2 screenPos = {
-				allocatedGeometry.position.x + m_panOffset.x + (node.position.x * m_zoom),
-				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * m_zoom)
+				allocatedGeometry.position.x + m_panOffset.x + (node.position.x * effectiveScale),
+				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * effectiveScale)
 			};
 
-			float pinY = screenPos.y + (40.0f * m_zoom);
+			float pinY = screenPos.y + (40.0f * effectiveScale);
 			for (auto& pin : node.inputs) {
 				pin.screenPosition = { screenPos.x, pinY };
-				pinY += (20.0f * m_zoom);
+				pinY += (30.0f * effectiveScale);
 			}
 
-			pinY = screenPos.y + (40.0f * m_zoom);
+			pinY = screenPos.y + (40.0f * effectiveScale);
 			for (auto& pin : node.outputs) {
-				pin.screenPosition = { screenPos.x + (node.size.x * m_zoom), pinY };
-				pinY += (20.0f * m_zoom);
+				pin.screenPosition = { screenPos.x + (node.size.x * effectiveScale), pinY };
+				pinY += (30.0f * effectiveScale);
 			}
 		}
 
@@ -119,18 +149,14 @@ namespace Silica {
 			NodePin* p1 = const_cast<SNodeEditor*>(this)->findPin(link.startPin);
 			NodePin* p2 = const_cast<SNodeEditor*>(this)->findPin(link.endPin);
 			if (p1 && p2) {
-				Vec2 cp1 = { p1->screenPosition.x + (50.0f * m_zoom), p1->screenPosition.y };
-				Vec2 cp2 = { p2->screenPosition.x - (50.0f * m_zoom), p2->screenPosition.y };
+				Vec2 cp1 = { p1->screenPosition.x + (50.0f * effectiveScale), p1->screenPosition.y };
+				Vec2 cp2 = { p2->screenPosition.x - (50.0f * effectiveScale), p2->screenPosition.y };
 
-				float targetThickness = (link.id == m_selectedLinkID ? 5.0f : 3.0f) * m_zoom;
+				float targetThickness = (link.id == m_selectedLinkID ? 5.0f : 3.0f) * effectiveScale;
 				float renderThickness = std::max(2.0f, targetThickness);
 
-				Color wireColor = (link.id == m_selectedLinkID) ? Color(255, 165, 0, 255) : link.color;
-				if (targetThickness < 2.0f) {
-					float alphaScale = targetThickness / 2.0f;
-					wireColor = Color(wireColor.r(), wireColor.g(), wireColor.b(), static_cast<uint8_t>(wireColor.a() * alphaScale));
-				}
-
+//				Color wireColor = (link.id == m_selectedLinkID) ? Color(255, 165, 0, 255) : link.color;
+				Color wireColor = (link.id == m_selectedLinkID) ? Silica::GetTheme().NodeEditor_Selected : link.color;
 				outDrawList.addBezierCurve(p1->screenPosition, cp1, cp2, p2->screenPosition, renderThickness, wireColor);
 			}
 		}
@@ -138,42 +164,57 @@ namespace Silica {
 		// -- Draw Nodes --
 		for (auto& node : const_cast<SNodeEditor*>(this)->m_nodes) {
 			Vec2 screenPos = {
-				allocatedGeometry.position.x + m_panOffset.x + (node.position.x * m_zoom),
-				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * m_zoom)
+				allocatedGeometry.position.x + m_panOffset.x + (node.position.x * effectiveScale),
+				allocatedGeometry.position.y + m_panOffset.y + (node.position.y * effectiveScale)
 			};
 
-			// -- Node Body And Header Backgrounds --
-			Geometry nodeGeo = { screenPos, {node.size.x * m_zoom, node.size.y * m_zoom} };
-			Geometry headerGeo = { screenPos, {node.size.x * m_zoom, 24.0f * m_zoom} };
-
-			if (node.id == m_selectedNodeID) {
-				Geometry outlineGeo = { {screenPos.x - 2.0f, screenPos.y - 2.0f}, {nodeGeo.size.x + 4.0f, nodeGeo.size.y + 4.0f} };
-				addRectToDrawList(outDrawList, outlineGeo, Color(255, 165, 0, 255));
+			// -- Cull Off-Screen Nodes --
+			float nodeRight = screenPos.x + (node.size.x * effectiveScale);
+			float nodeBottom = screenPos.y + (node.size.y * effectiveScale);
+			if (nodeRight < viewLeft || screenPos.x > viewRight || nodeBottom < viewTop || screenPos.y > viewBottom) {
+				continue;
 			}
 
-			addRectToDrawList(outDrawList, nodeGeo, Color(45, 45, 45, 255));
-			addRectToDrawList(outDrawList, headerGeo, node.headerColor);
+			// -- Node Body And Header Backgrounds --
+			Geometry nodeGeo = { screenPos, {node.size.x * effectiveScale, node.size.y * effectiveScale} };
+			Geometry headerGeo = { screenPos, {node.size.x * effectiveScale, 24.0f * effectiveScale} };
+
+			if (node.id == m_selectedNodeID) {
+				float outline = std::max(2.0f, 3.0f * effectiveScale);
+
+				Geometry outlineGeo = { {screenPos.x - outline, screenPos.y - outline}, {nodeGeo.size.x + (outline * 2.0f), nodeGeo.size.y + (outline * 2.0f)} };
+				outDrawList.addRect(outlineGeo, Silica::GetTheme().NodeEditor_Selected);
+			}
+
+			outDrawList.addRect(nodeGeo, Silica::GetTheme().NodeEditor_NodeBody);
+			outDrawList.addRect(headerGeo, node.headerColor);
 
 			// -- Title --
-			drawText(outDrawList, node.title, { screenPos.x + (8.0f * m_zoom), screenPos.y + (16.0f * m_zoom) }, Color::white());
+			outDrawList.addText(m_font, node.title, { screenPos.x + (8.0f * effectiveScale), screenPos.y + (16.0f * effectiveScale) }, Silica::GetTheme().Text_Main , effectiveScale);
 
 			// -- Draw Inputs --
-			float pinRadius = 4.0f * m_zoom;
-			float pinSize = 8.0f * m_zoom;
+			float pinRadius = 4.0f * effectiveScale;
+			float pinSize = 8.0f * effectiveScale;
 			for (auto& pin : node.inputs) {
-				addRectToDrawList(outDrawList, { {pin.screenPosition.x - pinRadius, pin.screenPosition.y - pinRadius}, {pinSize, pinSize} }, pin.color);
-				drawText(outDrawList, pin.name, { pin.screenPosition.x + (12.0f * m_zoom), pin.screenPosition.y + pinRadius }, GetTheme().Text_Main);
+				outDrawList.addRect({ {pin.screenPosition.x - pinRadius, pin.screenPosition.y - pinRadius}, {pinSize, pinSize} }, pin.color);
+				outDrawList.addText(m_font, pin.name, { pin.screenPosition.x + (12.0f * effectiveScale), pin.screenPosition.y + pinRadius }, GetTheme().Text_Main, effectiveScale);
 
 				if (pin.inlineWidget && !isPinConnected(pin.id)) {
-					pin.inlineWidget->onDraw(outDrawList, pin.inlineWidget->getAllocatedGeometry());
+					// -- Cull Off-Screen Inline Widgets --
+					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
+					if (widgetGeo.position.x + widgetGeo.size.x > viewLeft && widgetGeo.position.x < viewRight &&
+						widgetGeo.position.y + widgetGeo.size.y > viewTop && widgetGeo.position.y < viewBottom) {
+
+						pin.inlineWidget->onDraw(outDrawList, widgetGeo);
+					}
 				}
 			}
 
 			// -- Draw Outputs --
 			for (auto& pin : node.outputs) {
-				addRectToDrawList(outDrawList, { {pin.screenPosition.x - pinRadius, pin.screenPosition.y - pinRadius}, {pinSize, pinSize} }, pin.color);
-				float textWidth = pin.name.length() * 7.0f * m_zoom;
-				drawText(outDrawList, pin.name, { pin.screenPosition.x - textWidth - (12.0f * m_zoom), pin.screenPosition.y + pinRadius }, GetTheme().Text_Main);
+				outDrawList.addRect({ {pin.screenPosition.x - pinRadius, pin.screenPosition.y - pinRadius}, {pinSize, pinSize} }, pin.color);
+				float textWidth = getTextWidth(pin.name);
+				outDrawList.addText(m_font, pin.name, { pin.screenPosition.x - textWidth - (12.0f * effectiveScale), pin.screenPosition.y + pinRadius }, GetTheme().Text_Main, effectiveScale);
 			}
 		}
 
@@ -181,13 +222,13 @@ namespace Silica {
 		if (m_draggingPinID != -1) {
 			NodePin* startPin = const_cast<SNodeEditor*>(this)->findPin(m_draggingPinID);
 			if (startPin) {
-				Vec2 cp1 = { startPin->screenPosition.x + (startPin->type == PinType::Output ? 50.0f : -50.0f), startPin->screenPosition.y };
-				Vec2 cp2 = { m_dragWireEndPos.x + (startPin->type == PinType::Output ? -50.0f : 50.0f), m_dragWireEndPos.y };
+				Vec2 cp1 = { startPin->screenPosition.x + (startPin->type == PinType::Output ? 50.0f * effectiveScale : -50.0f * effectiveScale), startPin->screenPosition.y };
+				Vec2 cp2 = { m_dragWireEndPos.x + (startPin->type == PinType::Output ? -50.0f * effectiveScale : 50.0f * effectiveScale), m_dragWireEndPos.y };
 
-				float targetThickness = 5.0f * m_zoom;
+				float targetThickness = 5.0f * effectiveScale;
 				float renderThickness = std::max(2.0f, targetThickness);
 
-				Color wireColor = Color(255, 165, 0, 255);
+				Color wireColor = Silica::GetTheme().NodeEditor_Selected;
 				if (targetThickness < 2.0f) {
 					float alphaScale = targetThickness / 2.0f;
 					wireColor = Color(wireColor.r(), wireColor.g(), wireColor.b(), static_cast<uint8_t>(wireColor.a() * alphaScale));
@@ -202,6 +243,7 @@ namespace Silica {
 
 	EventReply SNodeEditor::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
 		if (!allocatedGeometry.contains(mousePos)) return EventReply::unhandled();
+		float effectiveScale = m_renderScale * m_zoom;
 
 		// -- Forward To Inline Widgets First --
 		for (auto& node : m_nodes) {
@@ -237,7 +279,7 @@ namespace Silica {
 					if (clickedPin->type == PinType::Input) {
 						auto it = std::find_if(m_links.begin(), m_links.end(), [hitPin](const GraphLink& l) {
 							return l.endPin == hitPin;
-						});
+							});
 
 						if (it != m_links.end()) {
 							m_draggingPinID = it->startPin;
@@ -264,8 +306,8 @@ namespace Silica {
 
 				GraphNode* node = findNode(hitNode);
 				Vec2 screenPos = {
-					allocatedGeometry.position.x + m_panOffset.x + (node->position.x * m_zoom),
-					allocatedGeometry.position.y + m_panOffset.y + (node->position.y * m_zoom)
+					allocatedGeometry.position.x + m_panOffset.x + (node->position.x * effectiveScale),
+					allocatedGeometry.position.y + m_panOffset.y + (node->position.y * effectiveScale)
 				};
 				m_nodeDragOffset = { mousePos.x - screenPos.x, mousePos.y - screenPos.y };
 
@@ -300,19 +342,22 @@ namespace Silica {
 
 	EventReply SNodeEditor::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		bool handled = false;
+		float effectiveScale = m_renderScale * m_zoom;
 
 		// -- Forward To Inline Widgets First --
 		for (auto& node : m_nodes) {
 			for (auto& pin : node.inputs) {
 				if (pin.inlineWidget && !isPinConnected(pin.id)) {
 					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
-					if (widgetGeo.contains(mousePos)) {
-						EventReply reply = pin.inlineWidget->onMouseMove(widgetGeo, mousePos);
-						if (reply.isHandled) return reply;
+					EventReply reply = pin.inlineWidget->onMouseMove(widgetGeo, mousePos);
+					if (reply.isHandled) {
+						handled = true;
 					}
 				}
 			}
 		}
+
+		if (handled) return EventReply::handled();
 
 		// -- Handle Panning --
 		if (m_isPanning) {
@@ -325,8 +370,8 @@ namespace Silica {
 		if (m_draggingNodeID != -1) {
 			GraphNode* node = findNode(m_draggingNodeID);
 			if (node) {
-				node->position.x = (mousePos.x - allocatedGeometry.position.x - m_panOffset.x - m_nodeDragOffset.x) / m_zoom;
-				node->position.y = (mousePos.y - allocatedGeometry.position.y - m_panOffset.y - m_nodeDragOffset.y) / m_zoom;
+				node->position.x = (mousePos.x - allocatedGeometry.position.x - m_panOffset.x - m_nodeDragOffset.x) / effectiveScale;
+				node->position.y = (mousePos.y - allocatedGeometry.position.y - m_panOffset.y - m_nodeDragOffset.y) / effectiveScale;
 			}
 			handled = true;
 		}
@@ -347,18 +392,22 @@ namespace Silica {
 	}
 
 	EventReply SNodeEditor::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
+		bool widgetHandled = false;
+
 		// -- Forward To Inline Widgets First --
 		for (auto& node : m_nodes) {
 			for (auto& pin : node.inputs) {
 				if (pin.inlineWidget && !isPinConnected(pin.id)) {
 					const Geometry& widgetGeo = pin.inlineWidget->getAllocatedGeometry();
-					if (widgetGeo.contains(mousePos)) {
-						EventReply reply = pin.inlineWidget->onMouseButtonUp(widgetGeo, mousePos, button);
-						if (reply.isHandled) return reply;
+					EventReply reply = pin.inlineWidget->onMouseButtonUp(widgetGeo, mousePos, button);
+					if (reply.isHandled) {
+						widgetHandled = true;
 					}
 				}
 			}
 		}
+
+		if (widgetHandled) return EventReply::handled();
 
 		if (button == MouseButton::Left) {
 			m_draggingNodeID = -1;
@@ -391,15 +440,21 @@ namespace Silica {
 				if (hitNode != -1 && m_onNodeContextClick) {
 					m_activeContextMenu = m_onNodeContextClick(hitNode, mousePos);
 					if (m_activeContextMenu) {
+						m_activeContextMenu->setRenderScale(m_renderScale);
 						m_activeContextMenu->computeDesiredSize();
-						m_contextMenuGeometry = { mousePos, m_activeContextMenu->getDesiredSize() };
+
+						Vec2 desired = m_activeContextMenu->getDesiredSize();
+						m_contextMenuGeometry = { mousePos, {desired.x * m_renderScale, desired.y * m_renderScale} };
 					}
 				}
 				else if (hitNode == -1 && m_onBackgroundContextClick) {
 					m_activeContextMenu = m_onBackgroundContextClick(mousePos);
 					if (m_activeContextMenu) {
+						m_activeContextMenu->setRenderScale(m_renderScale);
 						m_activeContextMenu->computeDesiredSize();
-						m_contextMenuGeometry = { mousePos, m_activeContextMenu->getDesiredSize() };
+
+						Vec2 desired = m_activeContextMenu->getDesiredSize();
+						m_contextMenuGeometry = { mousePos, {desired.x * m_renderScale, desired.y * m_renderScale} };
 					}
 				}
 			}
@@ -439,11 +494,14 @@ namespace Silica {
 
 		m_zoom = std::clamp(m_zoom + (scrollDelta * zoomSpeed), 0.3f, 2.0f);
 
-		Vec2 mouseLocal = { mousePos.x - allocatedGeometry.position.x, mousePos.y - allocatedGeometry.position.y };
-		Vec2 canvasPos = { (mouseLocal.x - m_panOffset.x) / oldZoom, (mouseLocal.y - m_panOffset.y) / oldZoom };
+		float oldEffectiveScale = m_renderScale * oldZoom;
+		float newEffectiveScale = m_renderScale * m_zoom;
 
-		m_panOffset.x = mouseLocal.x - (canvasPos.x * m_zoom);
-		m_panOffset.y = mouseLocal.y - (canvasPos.y * m_zoom);
+		Vec2 mouseLocal = { mousePos.x - allocatedGeometry.position.x, mousePos.y - allocatedGeometry.position.y };
+		Vec2 canvasPos = { (mouseLocal.x - m_panOffset.x) / oldEffectiveScale, (mouseLocal.y - m_panOffset.y) / oldEffectiveScale };
+
+		m_panOffset.x = mouseLocal.x - (canvasPos.x * newEffectiveScale);
+		m_panOffset.y = mouseLocal.y - (canvasPos.y * newEffectiveScale);
 
 		return EventReply::handled();
 	}
@@ -455,7 +513,7 @@ namespace Silica {
 			if (m_selectedLinkID != -1) {
 				m_links.erase(std::remove_if(m_links.begin(), m_links.end(), [this](const GraphLink& l) {
 					return l.id == m_selectedLinkID;
-				}), m_links.end());
+					}), m_links.end());
 
 				m_selectedLinkID = -1;
 				return EventReply::handled();
@@ -467,11 +525,11 @@ namespace Silica {
 					GraphNode* n1 = nullptr; findPin(l.startPin, &n1);
 					GraphNode* n2 = nullptr; findPin(l.endPin, &n2);
 					return (n1 && n1->id == m_selectedNodeID) || (n2 && n2->id == m_selectedNodeID);
-				}), m_links.end());
+					}), m_links.end());
 
 				m_nodes.erase(std::remove_if(m_nodes.begin(), m_nodes.end(), [this](const GraphNode& n) {
 					return n.id == m_selectedNodeID;
-				}), m_nodes.end());
+					}), m_nodes.end());
 
 				m_selectedNodeID = -1;
 				return EventReply::handled();
@@ -517,7 +575,8 @@ namespace Silica {
 	}
 
 	PinID SNodeEditor::hitTestPins(const Vec2& mousePos) {
-		float hitRadius = std::max(4.0f, 10.0f * m_zoom);
+		float effectiveScale = m_renderScale * m_zoom;
+		float hitRadius = std::max(4.0f, 10.0f * effectiveScale);
 
 		for (auto& n : m_nodes) {
 			for (auto& p : n.inputs) {
@@ -538,17 +597,19 @@ namespace Silica {
 	}
 
 	NodeID SNodeEditor::hitTestNodes(const Vec2& mousePos) {
+		float effectiveScale = m_renderScale * m_zoom;
+
 		for (auto it = m_nodes.rbegin(); it != m_nodes.rend(); ++it) {
 			Vec2 screenPos = {
-				m_allocatedGeometry.position.x + m_panOffset.x + (it->position.x * m_zoom),
-				m_allocatedGeometry.position.y + m_panOffset.y + (it->position.y * m_zoom)
+				m_allocatedGeometry.position.x + m_panOffset.x + (it->position.x * effectiveScale),
+				m_allocatedGeometry.position.y + m_panOffset.y + (it->position.y * effectiveScale)
 			};
 
 			Rect nodeRect(
 				screenPos.x,
-				screenPos.x + (it->size.x * m_zoom),
+				screenPos.x + (it->size.x * effectiveScale),
 				screenPos.y,
-				screenPos.y + (it->size.y * m_zoom)
+				screenPos.y + (it->size.y * effectiveScale)
 			);
 
 			if (nodeRect.contains(mousePos)) return it->id;
@@ -557,56 +618,17 @@ namespace Silica {
 		return -1;
 	}
 
-	void SNodeEditor::addRectToDrawList(DrawList& drawList, const Geometry& geo, Color color, float rounding) const {
-		uint32_t s = (uint32_t)drawList.vertices.size();
-
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y}, {0,0}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y}, {0,0}, color });
-		drawList.vertices.push_back({ {geo.position.x + geo.size.x, geo.position.y + geo.size.y}, {0,0}, color });
-		drawList.vertices.push_back({ {geo.position.x, geo.position.y + geo.size.y}, {0,0}, color });
-		drawList.indices.push_back(s + 0); drawList.indices.push_back(s + 1); drawList.indices.push_back(s + 2);
-		drawList.indices.push_back(s + 0); drawList.indices.push_back(s + 2); drawList.indices.push_back(s + 3);
-
-		if (drawList.commands.empty()) drawList.commands.push_back({ 0, 0, 0 });
-		drawList.commands.back().indexCount += 6;
-	}
-
-	void SNodeEditor::drawText(DrawList& drawList, const std::string& text, Vec2 pos, Color color) const {
-		if (!m_font) return;
-		float curX = pos.x;
-		for (char c : text) {
-			const Glyph& g = m_font->getGlyph(c);
-			if (g.size.x > 0) {
-				float x0 = std::round(curX + (g.offset.x * m_zoom));
-				float y0 = std::round(pos.y + (g.offset.y * m_zoom));
-				float x1 = x0 + (g.size.x * m_zoom);
-				float y1 = y0 + (g.size.y * m_zoom);
-				uint32_t s = (uint32_t)drawList.vertices.size();
-
-				drawList.vertices.push_back({ {x0,y0}, {g.uvMin.x, g.uvMin.y}, color });
-				drawList.vertices.push_back({ {x1,y0}, {g.uvMax.x, g.uvMin.y}, color });
-				drawList.vertices.push_back({ {x1,y1}, {g.uvMax.x, g.uvMax.y}, color });
-				drawList.vertices.push_back({ {x0,y1}, {g.uvMin.x, g.uvMax.y}, color });
-				drawList.indices.push_back(s + 0); drawList.indices.push_back(s + 1); drawList.indices.push_back(s + 2);
-				drawList.indices.push_back(s + 0); drawList.indices.push_back(s + 2); drawList.indices.push_back(s + 3);
-
-				if (drawList.commands.empty()) drawList.commands.push_back({ 0,0,0 });
-				drawList.commands.back().indexCount += 6;
-			}
-			curX += (g.advanceX * m_zoom);
-		}
-	}
-
 	LinkID SNodeEditor::hitTestLinks(const Vec2& mousePos) {
-		float hitRadiusSq = (5.0f * m_zoom) * (5.0f * m_zoom);
+		float effectiveScale = m_renderScale * m_zoom;
+		float hitRadiusSq = (5.0f * effectiveScale) * (5.0f * effectiveScale);
 
 		for (const auto& link : m_links) {
 			NodePin* p1 = findPin(link.startPin);
 			NodePin* p2 = findPin(link.endPin);
 			if (!p1 || !p2) continue;
 
-			Vec2 cp1 = { p1->screenPosition.x + (50.0f * m_zoom), p1->screenPosition.y };
-			Vec2 cp2 = { p2->screenPosition.x - (50.0f * m_zoom), p2->screenPosition.y };
+			Vec2 cp1 = { p1->screenPosition.x + (50.0f * effectiveScale), p1->screenPosition.y };
+			Vec2 cp2 = { p2->screenPosition.x - (50.0f * effectiveScale), p2->screenPosition.y };
 
 			int segments = 20;
 			Vec2 lastPoint = p1->screenPosition;
@@ -645,8 +667,9 @@ namespace Silica {
 	}
 
 	Vec2 SNodeEditor::screenToCanvas(const Vec2& screenPos) const {
+		float effectiveScale = m_renderScale * m_zoom;
 		Vec2 localPos = { screenPos.x - m_allocatedGeometry.position.x, screenPos.y - m_allocatedGeometry.position.y };
-		return { (localPos.x - m_panOffset.x) / m_zoom, (localPos.y - m_panOffset.y) / m_zoom };
+		return { (localPos.x - m_panOffset.x) / effectiveScale, (localPos.y - m_panOffset.y) / effectiveScale };
 	}
 
 	bool SNodeEditor::isPinConnected(PinID pinId) const {
@@ -714,16 +737,7 @@ namespace Silica {
 		std::getline(in, line);
 		if (line != "[SNodeEditor_v1]") return;
 
-		// -- Clear Current Graph State --
-		m_nodes.clear();
-		m_links.clear();
-		m_selectedNodeID = -1;
-		m_selectedLinkID = -1;
-		m_draggingNodeID = -1;
-		m_draggingPinID = -1;
-
 		GraphNode* currentNode = nullptr;
-		GraphLink* currentLink = nullptr;
 
 		while (std::getline(in, line)) {
 			if (line.empty()) continue;
@@ -739,44 +753,16 @@ namespace Silica {
 				iss >> m_zoom;
 			}
 			else if (token == "[Node]") {
-				m_nodes.push_back(GraphNode());
-				currentNode = &m_nodes.back();
-				currentLink = nullptr;
-			}
-			else if (token == "[Link]") {
-				m_links.push_back(GraphLink());
-				currentLink = &m_links.back();
 				currentNode = nullptr;
 			}
-			else if (currentNode) {
-				if (token == "ID") iss >> currentNode->id;
-				else if (token == "Title") std::getline(iss >> std::ws, currentNode->title);
-				else if (token == "Pos") iss >> currentNode->position.x >> currentNode->position.y;
-				else if (token == "Size") iss >> currentNode->size.x >> currentNode->size.y;
-				else if (token == "Color") {
-					int r, g, b, a; iss >> r >> g >> b >> a;
-					currentNode->headerColor = Color(r, g, b, a);
-				}
-				else if (token == "In" || token == "Out") {
-					NodePin pin;
-					int r, g, b, a;
-					iss >> pin.id >> r >> g >> b >> a;
-					std::getline(iss >> std::ws, pin.name);
-
-					pin.color = Color(r, g, b, a);
-					pin.type = (token == "In") ? PinType::Input : PinType::Output;
-
-					if (pin.type == PinType::Input) currentNode->inputs.push_back(pin);
-					else currentNode->outputs.push_back(pin);
-				}
+			else if (token == "ID") {
+				NodeID id;
+				iss >> id;
+				currentNode = findNode(id);
 			}
-			else if (currentLink) {
-				if (token == "ID") iss >> currentLink->id;
-				else if (token == "Start") iss >> currentLink->startPin;
-				else if (token == "End") iss >> currentLink->endPin;
-				else if (token == "Color") {
-					int r, g, b, a; iss >> r >> g >> b >> a;
-					currentLink->color = Color(r, g, b, a);
+			else if (currentNode) {
+				if (token == "Pos") {
+					iss >> currentNode->position.x >> currentNode->position.y;
 				}
 			}
 		}
@@ -784,9 +770,10 @@ namespace Silica {
 
 	float SNodeEditor::getTextWidth(const std::string& text) const {
 		if (!m_font) return 0.0f;
+		float effectiveScale = m_renderScale * m_zoom;
 		float width = 0.0f;
 		for (char c : text) width += m_font->getGlyph(c).advanceX;
-		return width * m_zoom;
+		return width * effectiveScale;
 	}
 
 	EventReply SNodeEditor::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {

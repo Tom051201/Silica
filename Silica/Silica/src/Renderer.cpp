@@ -1,6 +1,7 @@
 #include "Renderer.h"
 
 #include <cmath>
+#include <algorithm>
 
 #include "SWidget.h"
 #include "FontAtlas.h"
@@ -39,6 +40,9 @@ namespace Silica {
 	}
 
 	void DrawList::addRect(const Geometry& geo, Color color) {
+		Rect clip = getCurrentClipRect();
+		if ((int)clip.right <= (int)clip.left || (int)clip.bottom <= (int)clip.top) return;
+
 		uint32_t startIndex = (uint32_t)vertices.size();
 
 		vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, color }); // TL
@@ -60,6 +64,9 @@ namespace Silica {
 	}
 
 	void DrawList::addGradientRect(const Geometry& geo, Color tl, Color tr, Color br, Color bl) {
+		Rect clip = getCurrentClipRect();
+		if ((int)clip.right <= (int)clip.left || (int)clip.bottom <= (int)clip.top) return;
+
 		uint32_t startIndex = (uint32_t)vertices.size();
 
 		vertices.push_back({ {geo.position.x, geo.position.y}, {0.0f, 0.0f}, tl });
@@ -75,6 +82,9 @@ namespace Silica {
 	}
 
 	void DrawList::addThickLine(const Vec2& p0, const Vec2& p1, float thickness, Color color) {
+		Rect clip = getCurrentClipRect();
+		if ((int)clip.right <= (int)clip.left || (int)clip.bottom <= (int)clip.top) return;
+
 		Vec2 dir = { p1.x - p0.x, p1.y - p0.y };
 		float len = std::sqrt(dir.x * dir.x + dir.y * dir.y);
 		if (len < 0.001f) return;
@@ -102,6 +112,9 @@ namespace Silica {
 	}
 
 	void DrawList::addBezierCurve(const Vec2& p0, const Vec2& p1, const Vec2& p2, const Vec2& p3, float thickness, Color color) {
+		Rect clip = getCurrentClipRect();
+		if ((int)clip.right <= (int)clip.left || (int)clip.bottom <= (int)clip.top) return;
+
 		int segments = 40;
 		std::vector<Vec2> points;
 		points.reserve(segments + 1);
@@ -156,26 +169,28 @@ namespace Silica {
 		commands.back().indexCount += segments * 6;
 	}
 
-	void DrawList::addText(FontAtlas* font, const std::string& text, Vec2 position, Color color, float lineHeight) {
+	void DrawList::addText(FontAtlas* font, const std::string& text, Vec2 position, Color color, float scale, float lineHeight) {
+		Rect clip = getCurrentClipRect();
+		if ((int)clip.right <= (int)clip.left || (int)clip.bottom <= (int)clip.top) return;
 		if (!font || text.empty() || color.a() == 0) return;
 
 		float cursorX = position.x;
-		float baselineY = position.y;
+		float baselineY = std::round(position.y);
 
 		for (char c : text) {
 			if (c == '\n') {
 				cursorX = position.x;
-				baselineY += lineHeight;
+				baselineY += std::round(lineHeight * scale);
 				continue;
 			}
 
 			const Glyph& g = font->getGlyph(c);
 
 			if (g.size.x > 0 && g.size.y > 0) {
-				float x0 = std::round(cursorX + g.offset.x);
-				float y0 = std::round(baselineY + g.offset.y);
-				float x1 = x0 + g.size.x;
-				float y1 = y0 + g.size.y;
+				float x0 = std::round(cursorX + (g.offset.x * scale));
+				float y0 = baselineY + std::round(g.offset.y * scale);
+				float x1 = x0 + std::round(g.size.x * scale);
+				float y1 = y0 + std::round(g.size.y * scale);
 
 				uint32_t startIndex = (uint32_t)vertices.size();
 
@@ -196,12 +211,13 @@ namespace Silica {
 				}
 				commands.back().indexCount += 6;
 			}
-			cursorX += g.advanceX;
+
+			cursorX += (g.advanceX * scale);
 		}
 	}
 
 	Rect DrawList::getCurrentClipRect() const {
-		if (clipRectStack.empty()) return Rect(0, 0, 8192, 8192);
+		if (clipRectStack.empty()) return Rect(0, 8192, 0, 8192);
 		return clipRectStack.back();
 	}
 
@@ -264,8 +280,8 @@ namespace Silica {
 
 		// -- Draw Popup On Top --
 		for (size_t i = 0; i < s_popups.size(); ++i) {
-			s_popups[i].widget->computeDesiredSize();
-			s_popups[i].geometry.size = s_popups[i].widget->getDesiredSize();
+//			s_popups[i].widget->computeDesiredSize();
+//			s_popups[i].geometry.size = s_popups[i].widget->getDesiredSize();
 			s_popups[i].widget->arrangeChildren(s_popups[i].geometry);
 
 			s_drawList.pushClipRect(Rect(0, screenWidth, 0, screenHeight));
@@ -320,6 +336,15 @@ namespace Silica {
 
 			s_drawList.popClipRect();
 		}
+
+		s_drawList.commands.erase(
+			std::remove_if(s_drawList.commands.begin(), s_drawList.commands.end(), [](const DrawCommand& cmd) {
+				return cmd.indexCount == 0 ||
+					(int)cmd.clipRect.right <= (int)cmd.clipRect.left ||
+					(int)cmd.clipRect.bottom <= (int)cmd.clipRect.top;
+				}),
+			s_drawList.commands.end()
+		);
 	}
 
 	void Renderer::processMouseMove(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY) {
@@ -337,7 +362,7 @@ namespace Silica {
 		s_tooltipText.clear();
 		s_tooltipFont = nullptr;
 
-		if (SWidget::getCapturedWidget()) {
+		if (SWidget::getCapturedWidget() && !DragDrop::isDragging()) {
 			SWidget* captured = SWidget::getCapturedWidget();
 			captured->onMouseMove(captured->getAllocatedGeometry(), { mouseX, mouseY });
 			return;
@@ -390,6 +415,7 @@ namespace Silica {
 				if (popup.closeCallback) closeCallbacks.push_back(popup.closeCallback);
 			}
 			for (auto& cb : closeCallbacks) cb();
+			return;
 		}
 
 		if (!hitPopup && rootWidget) {
@@ -399,13 +425,6 @@ namespace Silica {
 	}
 
 	void Renderer::processMouseUp(WidgetPtr rootWidget, float screenWidth, float screenHeight, float mouseX, float mouseY, MouseButton button) {
-		if (SWidget::getCapturedWidget()) {
-			SWidget* captured = SWidget::getCapturedWidget();
-			captured->onMouseButtonUp(captured->getAllocatedGeometry(), { mouseX, mouseY }, button);
-			return;
-		}
-
-		// -- Drag Drop Logic --
 		if (button == MouseButton::Left && DragDrop::isDragging()) {
 			bool hitPopup = false;
 
@@ -425,6 +444,13 @@ namespace Silica {
 
 			DragDrop::endDrag();
 			SWidget::setDragHoveredWidget(nullptr);
+			SWidget::setCapturedWidget(nullptr);
+			return;
+		}
+
+		if (SWidget::getCapturedWidget()) {
+			SWidget* captured = SWidget::getCapturedWidget();
+			captured->onMouseButtonUp(captured->getAllocatedGeometry(), { mouseX, mouseY }, button);
 			return;
 		}
 

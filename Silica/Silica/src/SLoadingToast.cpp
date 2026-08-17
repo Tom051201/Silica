@@ -10,7 +10,7 @@ namespace Silica {
 
 	void SLoadingToast::construct(const Args& args) {
 		m_text = args.text;
-		m_font = args.font;
+		m_font = args.font ? args.font : Silica::GetTheme().Font_Default;
 		m_isVisible = args.isVisible;
 	}
 
@@ -25,7 +25,7 @@ namespace Silica {
 		outDrawList.addRect(allocatedGeometry, GetTheme().Background_Popup);
 
 		// -- Draw Borders --
-		float t = GetTheme().Border_Thickness;
+		float t = GetTheme().Border_Thickness * m_renderScale; // Scale border by render scale
 		Color c = GetTheme().Border_Selected;
 		float x = allocatedGeometry.position.x;
 		float y = allocatedGeometry.position.y;
@@ -40,26 +40,25 @@ namespace Silica {
 		// -- Draw Text --
 		if (m_font) {
 			const Glyph& g = m_font->getGlyph('C');
-			float textY = y + (h * 0.5f) - (g.size.y * 0.5f) - g.offset.y;
+			float textY = y + (h * 0.5f) - (g.size.y * m_renderScale * 0.5f) - (g.offset.y * m_renderScale);
 
-			Vec2 textPos = { x + 42.0f, std::round(textY) };
-			outDrawList.addText(m_font, m_text, textPos, GetTheme().Text_Main);
+			Vec2 textPos = { x + (42.0f * m_renderScale), std::round(textY) };
+			outDrawList.addText(m_font, m_text, textPos, GetTheme().Text_Main, m_renderScale);
 		}
 
 		// -- Draw Rotating Spinner --
-		Vec2 center = { x + 20.0f, y + 20.0f };
-		float radius = 7.0f;
-		float thickness = 2.5f;
+		Vec2 center = { x + (20.0f * m_renderScale), y + (20.0f * m_renderScale) };
+		float radius = 7.0f * m_renderScale;
+		float thickness = 2.5f * m_renderScale;
 		Color spinnerCol = GetTheme().Accent_Primary;
 
 		static auto startTime = std::chrono::high_resolution_clock::now();
 		auto currentTime = std::chrono::high_resolution_clock::now();
 		float time = std::chrono::duration<float>(currentTime - startTime).count();
 
-		// -- Spinner Math --
 		int segments = 24;
-		float startAngle = time * 6.0f; // Speed
-		float endAngle = startAngle + (3.14159f * 1.5f); // 270-degree arc
+		float startAngle = time * 6.0f;
+		float endAngle = startAngle + (3.14159f * 1.5f);
 
 		uint32_t startIndex = (uint32_t)outDrawList.vertices.size();
 		for (int i = 0; i <= segments; i++) {

@@ -57,6 +57,11 @@ namespace Silica {
 		if (m_child) m_child->onDraw(outDrawList, m_child->getAllocatedGeometry());
 	}
 
+	void SAlign::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_child) m_child->setRenderScale(scale);
+	}
+
 	EventReply SAlign::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_child) return m_child->onMouseMove(m_child->getAllocatedGeometry(), mousePos);
 		return EventReply::unhandled();
@@ -74,6 +79,16 @@ namespace Silica {
 
 	EventReply SAlign::onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) {
 		if (m_child) return m_child->onMouseWheel(m_child->getAllocatedGeometry(), mousePos, scrollDelta);
+		return EventReply::unhandled();
+	}
+
+	EventReply SAlign::onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child) return m_child->onDragOver(m_child->getAllocatedGeometry(), mousePos, payload);
+		return EventReply::unhandled();
+	}
+
+	EventReply SAlign::onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) {
+		if (m_child) return m_child->onDrop(m_child->getAllocatedGeometry(), mousePos, payload);
 		return EventReply::unhandled();
 	}
 

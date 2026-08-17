@@ -37,7 +37,8 @@ namespace Silica {
 			Geometry childGeo;
 			childGeo.position.x = allocatedGeometry.position.x;
 			childGeo.position.y = allocatedGeometry.position.y - m_scrollOffset;
-			float reservedSpace = (m_maxScroll > 0.0f) ? 12.0f : 0.0f;
+
+			float reservedSpace = (m_maxScroll > 0.0f) ? (12.0f * m_renderScale) : 0.0f;
 			childGeo.size.x = allocatedGeometry.size.x - reservedSpace;
 			childGeo.size.y = childDesired.y;
 
@@ -47,7 +48,7 @@ namespace Silica {
 
 	void SScrollBox::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
 		if (m_child) {
-			float reservedSpace = (m_maxScroll > 0.0f) ? 12.0f : 0.0f;
+			float reservedSpace = (m_maxScroll > 0.0f) ? (12.0f * m_renderScale) : 0.0f;
 
 			Rect myRect(
 				allocatedGeometry.position.x,
@@ -67,16 +68,19 @@ namespace Silica {
 				float visibleRatio = allocatedGeometry.size.y / m_child->getDesiredSize().y;
 
 				float thumbHeight = allocatedGeometry.size.y * visibleRatio;
-				if (thumbHeight < 20.0f) thumbHeight = 20.0f;
+				float minThumbHeight = 20.0f * m_renderScale;
+				if (thumbHeight < minThumbHeight) thumbHeight = minThumbHeight;
 
 				float scrollRatio = m_scrollOffset / m_maxScroll;
 				float availableTrack = allocatedGeometry.size.y - thumbHeight;
 				float thumbY = allocatedGeometry.position.y + (scrollRatio * availableTrack);
 
+				float thumbWidth = 8.0f * m_renderScale;
+
 				Geometry thumbGeo;
-				thumbGeo.position.x = allocatedGeometry.position.x + allocatedGeometry.size.x - 8.0f;
+				thumbGeo.position.x = allocatedGeometry.position.x + allocatedGeometry.size.x - thumbWidth;
 				thumbGeo.position.y = thumbY;
-				thumbGeo.size.x = 8.0f;
+				thumbGeo.size.x = thumbWidth;
 				thumbGeo.size.y = thumbHeight;
 
 				Color drawColor = m_isDraggingThumb ? m_thumbDraggingColor : m_thumbColor;
@@ -85,11 +89,19 @@ namespace Silica {
 		}
 	}
 
+	void SScrollBox::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_child) {
+			m_child->setRenderScale(scale);
+		}
+	}
+
 	EventReply SScrollBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_isDraggingThumb) {
 			float visibleRatio = allocatedGeometry.size.y / m_child->getDesiredSize().y;
 			float thumbHeight = allocatedGeometry.size.y * visibleRatio;
-			if (thumbHeight < 20.0f) thumbHeight = 20.0f;
+			float minThumbHeight = 20.0f * m_renderScale;
+			if (thumbHeight < minThumbHeight) thumbHeight = minThumbHeight;
 			float availableTrack = allocatedGeometry.size.y - thumbHeight;
 
 			if (availableTrack > 0.0f) {
@@ -144,7 +156,7 @@ namespace Silica {
 				if (reply.isHandled) return reply;
 			}
 
-			m_scrollOffset -= scrollDelta * m_scrollSpeed;
+			m_scrollOffset -= scrollDelta * (m_scrollSpeed * m_renderScale);
 
 			if (m_scrollOffset > m_maxScroll) m_scrollOffset = m_maxScroll;
 			if (m_scrollOffset < 0.0f) m_scrollOffset = 0.0f;
@@ -160,14 +172,17 @@ namespace Silica {
 
 		float visibleRatio = allocatedGeometry.size.y / m_child->getDesiredSize().y;
 		float thumbHeight = allocatedGeometry.size.y * visibleRatio;
-		if (thumbHeight < 20.0f) thumbHeight = 20.0f;
+		float minThumbHeight = 20.0f * m_renderScale;
+		if (thumbHeight < minThumbHeight) thumbHeight = minThumbHeight;
 
 		float scrollRatio = m_scrollOffset / m_maxScroll;
 		float availableTrack = allocatedGeometry.size.y - thumbHeight;
 		float thumbY = allocatedGeometry.position.y + (scrollRatio * availableTrack);
 
+		float thumbWidth = 8.0f * m_renderScale;
+
 		return Rect(
-			allocatedGeometry.position.x + allocatedGeometry.size.x - 8.0f,
+			allocatedGeometry.position.x + allocatedGeometry.size.x - thumbWidth,
 			allocatedGeometry.position.x + allocatedGeometry.size.x,
 			thumbY,
 			thumbY + thumbHeight

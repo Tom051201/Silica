@@ -22,42 +22,53 @@ namespace Silica {
 		if (m_content) m_content->computeDesiredSize();
 	}
 
-	void SWindow::arrangeChildren(const Geometry & allocatedGeometry) {
+	void SWindow::arrangeChildren(const Geometry& allocatedGeometry) {
 		m_allocatedGeometry.position = m_position;
 		m_allocatedGeometry.size = m_size;
 
 		if (m_content) {
+			float scaledTitleHeight = 30.0f * m_renderScale;
+
 			Geometry contentGeo;
 			contentGeo.position.x = m_position.x;
-			contentGeo.position.y = m_position.y + 30.0f;
+			contentGeo.position.y = m_position.y + scaledTitleHeight;
 			contentGeo.size.x = m_size.x;
-			contentGeo.size.y = m_size.y - 30.0f;
+			contentGeo.size.y = m_size.y - scaledTitleHeight;
 			m_content->arrangeChildren(contentGeo);
 		}
 	}
 
 	void SWindow::onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const {
+		float scaledTitleHeight = 30.0f * m_renderScale;
+
 		// -- Draw Window Background --
 		outDrawList.addRect(m_allocatedGeometry, m_backgroundColor);
 
 		// -- Draw Title Bar --
 		Color titleColor = m_isDragging ? m_titleBarDraggingColor : m_titleBarColor;
-		outDrawList.addRect({ m_position, {m_size.x, 30.0f} }, titleColor);
+		outDrawList.addRect({ m_position, {m_size.x, scaledTitleHeight} }, titleColor);
 
 		if (m_font && !m_title.empty()) {
-			Vec2 textPos = { m_position.x + 10.0f, m_position.y + 20.0f };
-			outDrawList.addText(m_font, m_title, textPos, m_titleTextColor);
+			Vec2 textPos = { m_position.x + (10.0f * m_renderScale), m_position.y + (20.0f * m_renderScale) };
+			outDrawList.addText(m_font, m_title, textPos, m_titleTextColor, m_renderScale);
 		}
 
 		// -- Draw Content --
 		if (m_content) {
-			outDrawList.pushClipRect(Rect(m_position.x, m_position.x + m_size.x, m_position.y + 30.0f, m_position.y + m_size.y));
+			outDrawList.pushClipRect(Rect(m_position.x, m_position.x + m_size.x, m_position.y + scaledTitleHeight, m_position.y + m_size.y));
 			m_content->onDraw(outDrawList, m_content->getAllocatedGeometry());
 			outDrawList.popClipRect();
 		}
 	}
 
-	EventReply SWindow::onMouseMove(const Geometry & allocatedGeometry, const Vec2 & mousePos) {
+	void SWindow::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_content) {
+			m_content->setRenderScale(scale);
+		}
+	}
+
+	EventReply SWindow::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		if (m_isDragging) {
 			m_position.x = mousePos.x - m_dragClickOffset.x;
 			m_position.y = mousePos.y - m_dragClickOffset.y;
@@ -112,7 +123,7 @@ namespace Silica {
 	}
 
 	Rect SWindow::getTitleBarRect() const {
-		return Rect(m_position.x, m_position.x + m_size.x, m_position.y, m_position.y + 30.0f);
+		return Rect(m_position.x, m_position.x + m_size.x, m_position.y, m_position.y + (30.0f * m_renderScale));
 	}
 
 	bool SWindow::isDragging() const {

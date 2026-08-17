@@ -27,13 +27,17 @@ namespace Silica {
 		// -- Draw Inner Check --
 		if (m_isChecked) {
 			Geometry checkGeo;
-			float pad = GetTheme().Element_Padding;
+			float pad = GetTheme().Element_Padding * m_renderScale;
 			checkGeo.position.x = allocatedGeometry.position.x + pad;
 			checkGeo.position.y = allocatedGeometry.position.y + pad;
 			checkGeo.size.x = allocatedGeometry.size.x - (pad * 2.0f);
 			checkGeo.size.y = allocatedGeometry.size.y - (pad * 2.0f);
 			outDrawList.addRect(checkGeo, m_checkColor);
 		}
+	}
+
+	void SCheckBox::setRenderScale(float scale) {
+		m_renderScale = scale;
 	}
 
 	EventReply SCheckBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {

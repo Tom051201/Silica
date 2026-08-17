@@ -38,9 +38,21 @@ namespace Silica {
 		}
 	}
 
+	void SScissorBox::setRenderScale(float scale) {
+		m_renderScale = scale;
+		if (m_child) {
+			m_child->setRenderScale(scale);
+		}
+	}
+
 	EventReply SScissorBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		if (m_child && allocatedGeometry.contains(mousePos)) {
-			return m_child->onMouseMove(m_child->getAllocatedGeometry(), mousePos);
+		if (m_child) {
+			if (allocatedGeometry.contains(mousePos)) {
+				return m_child->onMouseMove(m_child->getAllocatedGeometry(), mousePos);
+			}
+			else {
+				m_child->onMouseMove(m_child->getAllocatedGeometry(), Vec2(-9999.0f, -9999.0f));
+			}
 		}
 
 		return EventReply::unhandled();
@@ -85,4 +97,5 @@ namespace Silica {
 
 		return EventReply::unhandled();
 	}
+
 }

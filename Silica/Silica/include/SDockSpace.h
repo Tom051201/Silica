@@ -64,6 +64,8 @@ namespace Silica {
 		void arrangeChildren(const Geometry& allocatedGeometry) override;
 		void onDraw(DrawList& outDrawList, const Geometry& allocatedGeometry) const override;
 
+		void setRenderScale(float scale) override;
+
 		EventReply onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) override;
 		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
@@ -83,6 +85,7 @@ namespace Silica {
 		void openTab(const std::string& title);
 		void closeTab(DockNodePtr node, int tabIndex);
 		void focusTab(const std::string& title);
+		bool isTabVisible(const std::string& title) const;
 
 		std::vector<std::string> getRegisteredTabNames() const;
 

@@ -1,15 +1,16 @@
 #pragma once
 
 #include "SWidget.h"
+#include "MathTypes.h"
 
 namespace Silica {
 
-	class SBorderLayout : public SWidget {
+	class SColorField : public SWidget {
 	public:
 
 		struct Args {
-			WidgetPtr topBar = nullptr;
-			WidgetPtr contentArea = nullptr;
+			Color initialColor = Color::white();
+			std::function<void(Color)> onColorChanged = nullptr;
 		};
 
 		void construct(const Args& args);
@@ -24,13 +25,10 @@ namespace Silica {
 		EventReply onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
 		EventReply onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) override;
 		EventReply onMouseWheel(const Geometry& allocatedGeometry, const Vec2& mousePos, float scrollDelta) override;
-		EventReply onDragOver(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) override;
-		EventReply onDrop(const Geometry& allocatedGeometry, const Vec2& mousePos, const DragDropPayload& payload) override;
 
 	private:
 
-		WidgetPtr m_topBar;
-		WidgetPtr m_contentArea;
+		WidgetPtr m_anchor;
 
 	};
 
