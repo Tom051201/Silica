@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SInputFieldVec3Float.h"
 
 #include "SHorizontalBox.h"

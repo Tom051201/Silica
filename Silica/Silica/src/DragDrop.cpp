@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "DragDrop.h"
 
 namespace Silica {

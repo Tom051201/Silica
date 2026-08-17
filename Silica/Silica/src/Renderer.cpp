@@ -1,12 +1,9 @@
+#include "silicapch.h"
 #include "Renderer.h"
-
-#include <cmath>
-#include <algorithm>
 
 #include "SWidget.h"
 #include "FontAtlas.h"
 #include "DragDrop.h"
-#include "Theme.h"
 
 namespace Silica {
 

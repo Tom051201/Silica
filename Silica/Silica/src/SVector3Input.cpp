@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SVector3Input.h"
 
 #include "SHorizontalBox.h"

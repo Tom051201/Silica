@@ -1,6 +1,5 @@
+#include "silicapch.h"
 #include "SOverlay.h"
-
-#include <algorithm>
 
 namespace Silica {
 

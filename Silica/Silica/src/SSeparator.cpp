@@ -1,6 +1,6 @@
+#include "silicapch.h"
 #include "SSeparator.h"
 
-#include "Theme.h"
 #include "Renderer.h"
 
 namespace Silica {

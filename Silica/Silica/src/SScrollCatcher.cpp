@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SScrollCatcher.h"
 
 namespace Silica {

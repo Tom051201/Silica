@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SComboBox.h"
 
 #include "SButton.h"
@@ -7,9 +8,6 @@
 #include "SBox.h"
 #include "SEditableText.h"
 #include "Renderer.h"
-#include "Theme.h"
-
-#include <algorithm>
 
 namespace Silica {
 

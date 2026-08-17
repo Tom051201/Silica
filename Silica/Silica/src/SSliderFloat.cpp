@@ -1,11 +1,7 @@
+#include "silicapch.h"
 #include "SSliderFloat.h"
 
-#include <algorithm>
-#include <cstdio>
-#include <cmath>
-
 #include "Renderer.h"
-#include "Theme.h"
 
 namespace Silica {
 

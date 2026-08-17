@@ -1,6 +1,5 @@
+#include "silicapch.h"
 #include "SScrollBox.h"
-
-#include "Theme.h"
 
 namespace Silica {
 

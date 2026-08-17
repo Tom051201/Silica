@@ -1,10 +1,7 @@
+#include "silicapch.h"
 #include "SNodeEditor.h"
 
-#include <algorithm>
-#include <sstream>
-
 #include "Renderer.h"
-#include "Theme.h"
 
 namespace Silica {
 

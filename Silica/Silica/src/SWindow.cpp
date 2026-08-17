@@ -1,7 +1,7 @@
+#include "silicapch.h"
 #include "SWindow.h"
 
 #include "Renderer.h"
-#include "Theme.h"
 
 namespace Silica {
 

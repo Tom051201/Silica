@@ -1,9 +1,7 @@
+#include "silicapch.h"
 #include "STextBlock.h"
 
 #include "Renderer.h"
-#include "Theme.h"
-
-#include <cmath>
 
 namespace Silica {
 

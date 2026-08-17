@@ -1,6 +1,5 @@
+#include "silicapch.h"
 #include "SButton.h"
-
-#include "Theme.h"
 
 namespace Silica {
 

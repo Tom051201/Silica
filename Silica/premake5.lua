@@ -7,6 +7,9 @@ project "Silica"
 	targetdir ("%{wks.location}/bin/" .. outputdir .. "/%{prj.name}")
 	objdir ("%{wks.location}/bin-int/" .. outputdir .. "/%{prj.name}")
 
+	pchheader "silicapch.h"
+	pchsource "Silica/src/silicapch.cpp"
+
 	files {
 		"Silica/src/**.h",
 		"Silica/src/**.cpp",
@@ -17,6 +20,9 @@ project "Silica"
 		"Silica/include",
 		"Silica/src"
 	}
+
+	filter { "files:Silica/src/vendor/**.cpp or Silica/backends/**.cpp" }
+		enablepch "Off"
 	
 	filter "system:windows"
 		systemversion "latest"

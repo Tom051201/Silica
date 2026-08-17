@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SWrapBox.h"
 
 namespace Silica {

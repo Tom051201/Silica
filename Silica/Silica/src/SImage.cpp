@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SImage.h"
 
 namespace Silica {

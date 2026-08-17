@@ -1,10 +1,7 @@
+#include "silicapch.h"
 #include "SEditableText.h"
 
-#include <chrono>
-#include <algorithm>
-
 #include "Renderer.h"
-#include "Theme.h"
 
 namespace Silica {
 

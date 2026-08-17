@@ -1,6 +1,5 @@
+#include "silicapch.h"
 #include "SBorderLayout.h"
-
-#include <algorithm>
 
 namespace Silica {
 

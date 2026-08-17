@@ -1,8 +1,5 @@
+#include "silicapch.h"
 #include "SWorkspace.h"
-
-#include <algorithm>
-
-#include "Theme.h"
 
 namespace Silica {
 

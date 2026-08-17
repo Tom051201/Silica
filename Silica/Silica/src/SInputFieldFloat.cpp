@@ -1,6 +1,5 @@
+#include "silicapch.h"
 #include "SInputFieldFloat.h"
-
-#include <sstream>
 
 #include "SEditableText.h"
 

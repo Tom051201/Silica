@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SHorizontalBox.h"
 
 namespace Silica {

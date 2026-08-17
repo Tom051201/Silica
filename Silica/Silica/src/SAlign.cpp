@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SAlign.h"
 
 namespace Silica {

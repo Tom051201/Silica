@@ -1,7 +1,5 @@
+#include "silicapch.h"
 #include "SColorPicker.h"
-
-#include <algorithm>
-#include <cmath>
 
 namespace Silica {
 

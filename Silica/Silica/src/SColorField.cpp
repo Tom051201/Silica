@@ -1,10 +1,10 @@
+#include "silicapch.h"
 #include "SColorField.h"
 
 #include "SMenuAnchor.h"
 #include "SButton.h"
 #include "SBox.h"
 #include "SColorPicker.h"
-#include "Theme.h"
 
 namespace Silica {
 

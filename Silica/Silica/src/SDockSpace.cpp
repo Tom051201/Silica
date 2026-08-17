@@ -1,11 +1,7 @@
+#include "silicapch.h"
 #include "SDockSpace.h"
 
-#include <functional>
-#include <algorithm>
-#include <sstream>
-
 #include "Renderer.h"
-#include "Theme.h"
 
 namespace Silica {
 

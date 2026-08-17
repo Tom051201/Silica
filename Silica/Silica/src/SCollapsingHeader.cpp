@@ -1,6 +1,5 @@
+#include "silicapch.h"
 #include "SCollapsingHeader.h"
-
-#include "Theme.h"
 
 namespace Silica {
 

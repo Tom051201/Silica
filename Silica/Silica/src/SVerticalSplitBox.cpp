@@ -1,7 +1,5 @@
+#include "silicapch.h"
 #include "SVerticalSplitBox.h"
-
-#include "Theme.h"
-#include <algorithm>
 
 namespace Silica {
 

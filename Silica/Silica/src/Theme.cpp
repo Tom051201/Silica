@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "Theme.h"
 
 namespace Silica {

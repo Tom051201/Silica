@@ -1,9 +1,6 @@
+#include "silicapch.h"
 #include "SLoadingToast.h"
 
-#include <chrono>
-#include <cmath>
-
-#include "Theme.h"
 #include "Renderer.h"
 
 namespace Silica {

@@ -1,6 +1,5 @@
+#include "silicapch.h"
 #include "FontAtlas.h"
-
-#include <fstream>
 
 #include "vendor/stb_truetype.h"
 

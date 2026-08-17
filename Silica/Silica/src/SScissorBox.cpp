@@ -1,3 +1,4 @@
+#include "silicapch.h"
 #include "SScissorBox.h"
 
 namespace Silica {
