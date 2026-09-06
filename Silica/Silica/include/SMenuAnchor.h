@@ -19,6 +19,7 @@ namespace Silica {
 			bool openAtMousePos = false;
 			std::optional<Color> arrowNormal;
 			std::optional<Color> arrowHover;
+			std::optional<std::string> hoverGroup;
 			WidgetPtr anchorContent = nullptr;
 			WidgetPtr menuContent = nullptr;
 		};
@@ -54,6 +55,7 @@ namespace Silica {
 		bool m_openAtMousePos = false;
 		Color m_arrowNormal;
 		Color m_arrowHover;
+		std::string m_hoverGroup = "";
 		Vec2 m_clickPos;
 
 		Geometry m_menuGeometry;

@@ -84,12 +84,16 @@ namespace Silica {
 	}
 
 	EventReply SBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
+		EventReply childReply = EventReply::unhandled();
+
 		if (m_child) {
-			EventReply reply = m_child->onMouseMove(getChildGeometry(allocatedGeometry), mousePos);
-			if (reply.isHandled) return reply;
+			childReply = m_child->onMouseMove(getChildGeometry(allocatedGeometry), mousePos);
 		}
 
 		m_isHovered = allocatedGeometry.contains(mousePos);
+
+		if (childReply.isHandled) return childReply;
+
 		if (m_isHovered && m_consumePointerEvents) return EventReply::handled();
 		return EventReply::unhandled();
 	}

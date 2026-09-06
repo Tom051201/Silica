@@ -19,7 +19,9 @@ namespace Silica {
 			.onValueChanged = [this, args](float v) {
 				m_currentValue.x = v;
 				if (args.onValueChanged) args.onValueChanged(m_currentValue);
-			}
+			},
+			.onEditBegin = args.onEditBegin,
+			.onEditComplete = args.onEditComplete,
 		});
 
 		m_inputY = MakeWidget<SInputFieldFloat>({
@@ -28,7 +30,9 @@ namespace Silica {
 			.onValueChanged = [this, args](float v) {
 				m_currentValue.y = v;
 				if (args.onValueChanged) args.onValueChanged(m_currentValue);
-			}
+			},
+			.onEditBegin = args.onEditBegin,
+			.onEditComplete = args.onEditComplete,
 		});
 
 		m_inputZ = MakeWidget<SInputFieldFloat>({
@@ -37,7 +41,9 @@ namespace Silica {
 			.onValueChanged = [this, args](float v) {
 				m_currentValue.z = v;
 				if (args.onValueChanged) args.onValueChanged(m_currentValue);
-			}
+			},
+			.onEditBegin = args.onEditBegin,
+			.onEditComplete = args.onEditComplete,
 		});
 
 		auto makeAxis = [&](const std::string& axis, Color color, std::shared_ptr<SInputFieldFloat> inputWidget, std::function<void()> onReset) {
@@ -48,8 +54,10 @@ namespace Silica {
 						.color = color,
 						.hoverColor = color,
 						.pressedColor = color,
-						.onClick = [onReset]() {
+						.onClick = [onReset, args]() {
+							if (args.onEditBegin) args.onEditBegin();
 							onReset();
+							if (args.onEditComplete) args.onEditComplete();
 							return EventReply::handled();
 						},
 						.child = MakeWidget<STextBlock>({

@@ -80,18 +80,25 @@ namespace Silica {
 	}
 
 	EventReply SVerticalBox::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
-		EventReply finalReply = EventReply::unhandled();
+		bool eventHandled = false;
 
-		for (const Slot& slot : m_slots) {
-			if (slot.child) {
-				EventReply reply = slot.child->onMouseMove(slot.child->getAllocatedGeometry(), mousePos);
-				if (reply.isHandled) {
-					finalReply = reply;
+		// Reverse iteration: top visual elements get the mouse first
+		for (auto it = m_slots.rbegin(); it != m_slots.rend(); ++it) {
+			if (it->child) {
+				if (!eventHandled) {
+					EventReply reply = it->child->onMouseMove(it->child->getAllocatedGeometry(), mousePos);
+					if (reply.isHandled) {
+						eventHandled = true;
+					}
+				}
+				else {
+					// A sibling already took the mouse. Force clear this widget's hover state!
+					it->child->onMouseMove(it->child->getAllocatedGeometry(), Vec2(-9999.0f, -9999.0f));
 				}
 			}
 		}
 
-		return finalReply;
+		return eventHandled ? EventReply::handled() : EventReply::unhandled();
 	}
 
 	EventReply SVerticalBox::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {

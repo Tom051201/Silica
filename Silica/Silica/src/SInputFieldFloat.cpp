@@ -8,6 +8,8 @@ namespace Silica {
 	void SInputFieldFloat::construct(const Args& args) {
 		m_currentValue = args.initialValue;
 		m_onValueChanged = args.onValueChanged;
+		m_onEditBegin = args.onEditBegin;
+		m_onEditComplete = args.onEditComplete;
 
 		std::string initialText = std::to_string(m_currentValue);
 
@@ -40,7 +42,9 @@ namespace Silica {
 				catch (...) {
 					setValue(m_currentValue);
 				}
-			}
+			},
+			.onEditBegin = m_onEditBegin,
+			.onEditComplete = m_onEditComplete,
 		});
 	}
 
@@ -95,12 +99,14 @@ namespace Silica {
 				float step = isShiftHeld ? 1.0f : 0.1f;
 				float rawValue = m_currentValue + (scrollDelta * step);
 
-				setValue(rawValue, true);
+				if (m_onEditBegin) m_onEditBegin();
 
+				setValue(rawValue, true);
 				if (m_onValueChanged) {
 					m_onValueChanged(m_currentValue);
 				}
 
+				if (m_onEditComplete) m_onEditComplete();
 				return EventReply::handled();
 			}
 		}

@@ -1,9 +1,10 @@
 #include "silicapch.h"
 #include "SMenuAnchor.h"
-
 #include "Renderer.h"
 
 namespace Silica {
+
+	static SMenuAnchor* s_activeGroupedAnchor = nullptr;
 
 	void SMenuAnchor::construct(const Args& args) {
 		m_anchorContent = args.anchorContent;
@@ -15,6 +16,7 @@ namespace Silica {
 		m_openAtMousePos = args.openAtMousePos;
 		m_arrowNormal = args.arrowNormal.value_or(GetTheme().Text_Dim);
 		m_arrowHover = args.arrowHover.value_or(GetTheme().Text_Main);
+		m_hoverGroup = args.hoverGroup.value_or("");
 	}
 
 	void SMenuAnchor::computeDesiredSize() {
@@ -24,6 +26,10 @@ namespace Silica {
 		}
 		else {
 			m_desiredSize = Vec2::zero();
+		}
+
+		if (m_showArrow) {
+			m_desiredSize.x += 16.0f * m_renderScale;
 		}
 
 		if (m_menuContent) {
@@ -36,7 +42,9 @@ namespace Silica {
 
 		// -- Arrange The Normal Button --
 		if (m_anchorContent) {
-			m_anchorContent->arrangeChildren(allocatedGeometry);
+			Geometry anchorGeo = allocatedGeometry;
+			if (m_showArrow) anchorGeo.size.x -= 16.0f * m_renderScale;
+			m_anchorContent->arrangeChildren(anchorGeo);
 		}
 
 		// -- Arrange The Floating Menu --
@@ -57,6 +65,9 @@ namespace Silica {
 
 			Renderer::pushPopup(m_menuContent, m_menuGeometry, [this]() {
 				m_isOpen = false;
+				if (!m_hoverGroup.empty() && s_activeGroupedAnchor == this) {
+					s_activeGroupedAnchor = nullptr;
+				}
 			});
 		}
 	}
@@ -70,12 +81,12 @@ namespace Silica {
 		// -- Draw The Arrow --
 		if (m_showArrow) {
 			Vec2 arrowCenter = {
-				allocatedGeometry.position.x + allocatedGeometry.size.x - (12.0f * m_renderScale),
-				allocatedGeometry.position.y + (allocatedGeometry.size.y * 0.5f)
+				allocatedGeometry.position.x + allocatedGeometry.size.x - (8.0f * m_renderScale),
+				allocatedGeometry.position.y + allocatedGeometry.size.y * 0.5f
 			};
 
 			Color arrowColor = m_isHovered ? m_arrowHover : m_arrowNormal;
-			drawTriangle(outDrawList, arrowCenter, 6.0f * m_renderScale, arrowColor);
+			drawTriangle(outDrawList, arrowCenter, 5.0f * m_renderScale, arrowColor);
 		}
 	}
 
@@ -88,6 +99,15 @@ namespace Silica {
 	EventReply SMenuAnchor::onMouseMove(const Geometry& allocatedGeometry, const Vec2& mousePos) {
 		Vec2 realMouse = Renderer::getMousePosition();
 		bool isHoveringAnchorReal = allocatedGeometry.contains(realMouse);
+
+		// Generic Group Gliding
+		if (!m_hoverGroup.empty() && isHoveringAnchorReal && !m_isOpen && s_activeGroupedAnchor != nullptr && s_activeGroupedAnchor != this) {
+			if (s_activeGroupedAnchor->m_hoverGroup == m_hoverGroup) {
+				s_activeGroupedAnchor->closeMenu();
+				s_activeGroupedAnchor = this;
+				m_isOpen = true;
+			}
+		}
 
 		if (m_openOnHover && isHoveringAnchorReal && !m_isOpen) {
 			m_isOpen = true;
@@ -104,15 +124,17 @@ namespace Silica {
 
 		Vec2 childMousePos = mousePos;
 		if (m_isOpen) {
+			// Force the button visually into a hover state while the menu is open
 			childMousePos = { allocatedGeometry.position.x + 1.0f, allocatedGeometry.position.y + 1.0f };
 		}
 
-		EventReply childReply = EventReply::unhandled();
 		if (m_anchorContent) {
-			childReply = m_anchorContent->onMouseMove(m_anchorContent->getAllocatedGeometry(), childMousePos);
+			m_anchorContent->onMouseMove(m_anchorContent->getAllocatedGeometry(), childMousePos);
 		}
 
-		return m_isHovered ? EventReply::handled() : childReply;
+		// DO NOT return the child's reply! If we are open, the child returns 'handled' 
+		// because of the fake coordinates, which breaks all sibling widgets in the layout!
+		return allocatedGeometry.contains(mousePos) ? EventReply::handled() : EventReply::unhandled();
 	}
 
 	EventReply SMenuAnchor::onMouseButtonDown(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
@@ -137,6 +159,18 @@ namespace Silica {
 				else if (!m_openOnRightClick && button == MouseButton::Left) {
 					m_isOpen = !m_isOpen;
 					m_clickPos = mousePos;
+
+					if (!m_hoverGroup.empty()) {
+						if (m_isOpen) {
+							if (s_activeGroupedAnchor && s_activeGroupedAnchor != this) {
+								s_activeGroupedAnchor->closeMenu();
+							}
+							s_activeGroupedAnchor = this;
+						}
+						else {
+							if (s_activeGroupedAnchor == this) s_activeGroupedAnchor = nullptr;
+						}
+					}
 				}
 			}
 
@@ -145,18 +179,19 @@ namespace Silica {
 
 		if (m_isOpen && !m_menuGeometry.contains(mousePos) && !allocatedGeometry.contains(mousePos)) {
 			m_isOpen = false;
+			if (!m_hoverGroup.empty() && s_activeGroupedAnchor == this) {
+				s_activeGroupedAnchor = nullptr;
+			}
 		}
 
 		return childReply;
 	}
 
 	EventReply SMenuAnchor::onMouseButtonUp(const Geometry& allocatedGeometry, const Vec2& mousePos, MouseButton button) {
-
 		if (m_anchorContent) {
 			EventReply reply = m_anchorContent->onMouseButtonUp(m_anchorContent->getAllocatedGeometry(), mousePos, button);
 			if (reply.isHandled) return reply;
 		}
-
 		return EventReply::unhandled();
 	}
 

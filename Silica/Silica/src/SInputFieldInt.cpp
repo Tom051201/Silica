@@ -8,6 +8,8 @@ namespace Silica {
 	void SInputFieldInt::construct(const Args& args) {
 		m_currentValue = args.initialValue;
 		m_onValueChanged = args.onValueChanged;
+		m_onEditBegin = args.onEditBegin;
+		m_onEditComplete = args.onEditComplete;
 
 		m_editableText = MakeWidget<SEditableText>({
 			.initialText = std::to_string(m_currentValue),
@@ -33,7 +35,9 @@ namespace Silica {
 				catch (...) {
 					setValue(m_currentValue);
 				}
-			}
+			},
+			.onEditBegin = m_onEditBegin,
+			.onEditComplete = m_onEditComplete,
 		});
 	}
 
@@ -81,16 +85,17 @@ namespace Silica {
 
 			if (isCtrlHeld) {
 				bool isShiftHeld = Platform::isKeyDown(Key::LeftShift) || Platform::isKeyDown(Key::RightShift);
-
 				int step = isShiftHeld ? 10 : 1;
 				int newValue = m_currentValue + (static_cast<int>(scrollDelta) * step);
 
-				setValue(newValue, true);
+				if (m_onEditBegin) m_onEditBegin();
 
+				setValue(newValue, true);
 				if (m_onValueChanged) {
 					m_onValueChanged(m_currentValue);
 				}
 
+				if (m_onEditComplete) m_onEditComplete();
 				return EventReply::handled();
 			}
 		}

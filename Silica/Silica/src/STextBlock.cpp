@@ -75,4 +75,8 @@ namespace Silica {
 		updateDisplayText();
 	}
 
+	void STextBlock::setColor(const Color& color) {
+		m_color = color;
+	}
+
 }

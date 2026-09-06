@@ -277,10 +277,6 @@ namespace Silica {
 
 		// -- Draw Popup On Top --
 		for (size_t i = 0; i < s_popups.size(); ++i) {
-//			s_popups[i].widget->computeDesiredSize();
-//			s_popups[i].geometry.size = s_popups[i].widget->getDesiredSize();
-			s_popups[i].widget->arrangeChildren(s_popups[i].geometry);
-
 			s_drawList.pushClipRect(Rect(0, screenWidth, 0, screenHeight));
 			s_popups[i].widget->onDraw(s_drawList, s_popups[i].geometry);
 			s_drawList.popClipRect();
@@ -367,19 +363,21 @@ namespace Silica {
 
 		bool popupHandled = false;
 
+		// Route mouse moves top-down through the popups
 		for (int i = (int)s_popups.size() - 1; i >= 0; --i) {
 			if (i >= s_popups.size()) continue;
 
-			if (!popupHandled && s_popups[i].geometry.contains({ mouseX, mouseY })) {
-				if (s_popups[i].widget->onMouseMove(s_popups[i].geometry, { mouseX, mouseY }).isHandled) {
-					popupHandled = true;
-					continue;
-				}
-			}
+			// If a popup above us handled it, or the mouse isn't in this popup, pass a fake "-9999" to clear its hover state
+			Vec2 passMousePos = (!popupHandled && s_popups[i].geometry.contains({ mouseX, mouseY })) ? Vec2(mouseX, mouseY) : Vec2(-9999.0f, -9999.0f);
 
-			s_popups[i].widget->onMouseMove(s_popups[i].geometry, popupHandled ? Vec2(-9999.0f, -9999.0f) : Vec2(mouseX, mouseY));
+			EventReply reply = s_popups[i].widget->onMouseMove(s_popups[i].geometry, passMousePos);
+
+			if (reply.isHandled && passMousePos.x != -9999.0f) {
+				popupHandled = true;
+			}
 		}
 
+		// Route to the main UI tree
 		if (rootWidget) {
 			Geometry rootGeo = { {0, 0}, {screenWidth, screenHeight} };
 			rootWidget->onMouseMove(rootGeo, popupHandled ? Vec2(-9999.0f, -9999.0f) : Vec2(mouseX, mouseY));
@@ -496,7 +494,15 @@ namespace Silica {
 	}
 
 	void Renderer::pushPopup(WidgetPtr widget, const Geometry& geo, std::function<void()> closeCallback) {
-		s_popups.push_back({ widget, geo, closeCallback });
+		for (auto& popup : s_popups) {
+			if (popup.widget == widget) {
+				popup.geometry = geo;
+				popup.closeCallback = std::move(closeCallback);
+				return;
+			}
+		}
+
+		s_popups.push_back({ widget, geo, std::move(closeCallback) });
 	}
 
 	void Renderer::closeAllPopups() {

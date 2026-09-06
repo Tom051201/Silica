@@ -17,6 +17,8 @@ namespace Silica {
 		m_charFilter = args.charFilter;
 		m_onTextChanged = args.onTextChanged;
 		m_onTextCommitted = args.onTextCommitted;
+		m_onEditBegin = args.onEditBegin;
+		m_onEditComplete = args.onEditComplete;
 	}
 
 	void SEditableText::computeDesiredSize() {
@@ -153,6 +155,7 @@ namespace Silica {
 
 			if (SWidget::getFocusedWidget() != this) {
 				SWidget::setFocusedWidget(this);
+				if (m_onEditBegin) m_onEditBegin();
 			}
 
 			m_cursorIndex = getIndexFromMousePos(allocatedGeometry, mousePos);
@@ -168,6 +171,7 @@ namespace Silica {
 		}
 		else if (SWidget::getFocusedWidget() == this) {
 			if (m_onTextCommitted) m_onTextCommitted(m_text);
+			if (m_onEditComplete) m_onEditComplete();
 			SWidget::setFocusedWidget(nullptr);
 			m_selectionAnchor = m_cursorIndex;
 		}
@@ -313,6 +317,7 @@ namespace Silica {
 		}
 		else if (key == Key::Enter) {
 			if (m_onTextCommitted) m_onTextCommitted(m_text);
+			if (m_onEditComplete) m_onEditComplete();
 			SWidget::setFocusedWidget(nullptr);
 			m_selectionAnchor = m_cursorIndex;
 			return EventReply::handled();

@@ -21,7 +21,9 @@ namespace Silica {
 					})},
 					{ {0,0}, MakeWidget<SSliderFloat>({
 						.initialValue = val,
-						.onValueChanged = onChange
+						.onValueChanged = onChange,
+						.onEditBegin = args.onEditBegin,
+						.onEditComplete = args.onEditComplete,
 					})}
 				}
 			});

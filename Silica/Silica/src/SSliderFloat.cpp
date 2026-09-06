@@ -18,6 +18,8 @@ namespace Silica {
 		m_thumbColor = args.thumbColor.value_or(GetTheme().Text_Dim);
 		m_thumbDraggingColor = args.thumbDraggingColor.value_or(GetTheme().Text_Main);
 		m_onValueChanged = args.onValueChanged;
+		m_onEditBegin = args.onEditBegin;
+		m_onEditComplete = args.onEditComplete;
 	}
 
 	void SSliderFloat::computeDesiredSize() {
@@ -93,6 +95,7 @@ namespace Silica {
 		if (allocatedGeometry.contains(mousePos)) {
 			m_isDragging = true;
 			SWidget::setCapturedWidget(this);
+			if (m_onEditBegin) m_onEditBegin();
 			updateValueFromMouse(mousePos.x);
 			return EventReply::handled();
 		}
@@ -106,6 +109,7 @@ namespace Silica {
 		if (m_isDragging) {
 			m_isDragging = false;
 			SWidget::setCapturedWidget(nullptr);
+			if (m_onEditComplete) m_onEditComplete();
 			return EventReply::handled();
 		}
 
@@ -158,10 +162,12 @@ namespace Silica {
 			newValue = std::clamp(newValue, m_min, m_max);
 
 			if (newValue != m_value) {
+				if (m_onEditBegin) m_onEditBegin();
 				m_value = newValue;
 				if (m_onValueChanged) {
 					m_onValueChanged(m_value);
 				}
+				if (m_onEditComplete) m_onEditComplete();
 				return EventReply::handled();
 			}
 		}
